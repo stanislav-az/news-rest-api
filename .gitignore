@@ -6,6 +6,7 @@ news-rest-api.cabal
 #########
 *.local
 *.bak
+*-bak.*
 
 # Compiled source #
 ###################
