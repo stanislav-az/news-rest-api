@@ -24,6 +24,10 @@ dependencies:
 - wai
 - warp
 - http-types
+- postgresql-simple
+- postgresql-simple-migration
+- directory
+- text
 
 library:
   source-dirs: src

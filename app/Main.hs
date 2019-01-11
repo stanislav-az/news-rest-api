@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Lib
+import Database
 import Network.Wai
 import Network.HTTP.Types
 import Network.Wai.Handler.Warp (run)
