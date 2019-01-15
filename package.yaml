@@ -28,6 +28,7 @@ dependencies:
 - postgresql-simple-migration
 - directory
 - text
+- aeson
 
 library:
   source-dirs: src

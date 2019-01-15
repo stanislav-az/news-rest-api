@@ -5,13 +5,13 @@ import Database.PostgreSQL.Simple
 import Database.PostgreSQL.Simple.Migration
 import System.Directory (createDirectoryIfMissing)
 import Data.Text as T hiding (head)    
+import Control.Exception
+import Data.Monoid ((<>))
 
 initializeDB :: IO ()
 initializeDB = do
     createDirectoryIfMissing False "./DBMigrations"
-    conn <- connect connectInfo
-    migrate conn
-    close conn
+    bracket (connect connectInfo) close migrate 
 
 connectInfo :: ConnectInfo
 connectInfo = ConnectInfo {
@@ -19,7 +19,7 @@ connectInfo = ConnectInfo {
     connectPort = 5432,
     connectUser = "stanislav", 
     connectPassword = "", --connecting via unix sockets tends to use the peer authentication method, which is very secure and does not require a password
-    connectDatabase = "hs"}
+    connectDatabase = "tesths"}
 
 migrate :: Connection -> IO ()
 migrate conn = do
@@ -31,3 +31,6 @@ migrate conn = do
         cmds = [MigrationInitialization, 
                 MigrationDirectory "./DBMigrations"]
                 
+getList :: FromRow a => Query -> IO [a]
+getList tableName = bracket (connect connectInfo) close $ \conn ->
+    query_ conn  $ "select * from " <> tableName 
