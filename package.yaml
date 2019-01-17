@@ -56,3 +56,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - news-rest-api
+    - hspec
+    - tasty
+    - tasty-hspec
