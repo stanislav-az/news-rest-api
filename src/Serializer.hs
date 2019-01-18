@@ -22,7 +22,7 @@ data CreateAuthorResponse = CreateAuthorResponse {
   createAuthorResponseDescription :: T.Text,
   createAuthorResponseId :: Integer,
   createAuthorResponseUserId :: Integer,
-  createAuthorResponseDateCreated :: UTCTime,
+  createAuthorResponseDateCreated :: LocalTime,
   createAuthorResponseIsAdmin :: Bool
 }
 

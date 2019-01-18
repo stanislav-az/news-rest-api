@@ -4,6 +4,7 @@ module Database where
 
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.ToRow
+import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.ToField
 import           Database.PostgreSQL.Simple.Migration
 import           System.Directory               ( createDirectoryIfMissing )
@@ -19,9 +20,12 @@ data User = User {
   userName :: T.Text,
   userSurname :: T.Text,
   userAvatar :: T.Text,
-  userDateCreated :: UTCTime,
+  userDateCreated :: LocalTime,
   userIsAdmin :: Bool
 }
+
+instance FromRow User where
+  fromRow = User <$> field <*> field <*> field <*> field <*> field <*> field
 
 instance ToRow User where
   toRow User {..} =
@@ -38,6 +42,9 @@ data Author = Author {
   authorUserId :: Integer,
   authorDescription :: T.Text
 }
+
+instance FromRow Author where
+  fromRow = Author <$> field <*> field <*> field
 
 data AuthorRaw = AuthorRaw {
   authorRawDescription :: T.Text
@@ -74,11 +81,23 @@ getList :: FromRow a => Query -> IO [a]
 getList tableName = bracket (connect connectInfo) close
   $ \conn -> query_ conn $ "SELECT * FROM " <> tableName
 
-addAuthorToDB :: (UserRaw, AuthorRaw) -> IO Int64
-addAuthorToDB (user@UserRaw {..}, author@AuthorRaw {..}) =
-  bracket (connect connectInfo) close $ \conn ->
-    execute conn insertUserQuery [userRawName, userRawSurname, userRawAvatar]
+addAuthorToDB :: (UserRaw, AuthorRaw) -> IO (User, Author)
+addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
+  bracket (connect connectInfo) close $ \conn -> do
+    (user : _) <- query conn
+                        insertUserQuery
+                        (userRawName, userRawSurname, userRawAvatar)
+    (author : _) <- query conn
+                          insertAuthorQuery
+                          (userId user, authorRawDescription)
+    pure (user, author)
+--execute conn insertUserQuery [userRawName, userRawSurname, userRawAvatar]
 
 insertUserQuery :: Query
 insertUserQuery =
-  "INSERT INTO users(user_id, name, surname, avatar, date_created, is_admin) VALUES (default,?,?,?,CURRENT_TIMESTAMP,false)"
+  "INSERT INTO users(user_id, name, surname, avatar, date_created, is_admin) VALUES (default,?,?,?,CURRENT_TIMESTAMP,default) \
+  \ RETURNING user_id, name, surname, avatar, date_created, is_admin"
+
+insertAuthorQuery :: Query
+insertAuthorQuery =
+  "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) RETURNING author_id, user_id, description"

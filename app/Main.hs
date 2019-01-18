@@ -9,6 +9,7 @@ import           Data.List
 import qualified Data.Text                     as T
 import           Data.Aeson
 import qualified Data.ByteString.Lazy          as LB
+import qualified Data.ByteString.Lazy.Char8    as BC
 import           Serializer
 
 {-TODO
@@ -41,17 +42,22 @@ app req respond = do
       "POST" -> do
         body <- requestBody req
         let createAuthorData =
-              decode $ LB.fromStrict body :: Maybe CreateAuthorRequest
-        maybe (error "Could not parse author") createAuthor createAuthorData
+              eitherDecode $ LB.fromStrict body :: Either
+                  String
+                  CreateAuthorRequest
+        either reportParseError createAuthor createAuthorData
        where
         createAuthor authorData = do
-          author <- addAuthorToDB $ requestToAuthor authorData
-          -- let authorJSON = encode $ authorToResponse author
+          (user, author) <- addAuthorToDB $ requestToAuthor authorData
+          let authorJSON = encode $ authorToResponse (user, author)
           putStrLn "Students page accessed"
           respond $ responseLBS status200
                                 [("Content-Type", "application/json")]
-                                "authorJSON"
-
+                                authorJSON
+        reportParseError err = respond $ responseLBS
+          status400
+          [("Content-Type", "plain/text")]
+          ("Parse error: " <> BC.pack err)
       _ -> respond $ responseLBS status405
                                  [("Content-Type", "plain/text")]
                                  "Method not allowed"
