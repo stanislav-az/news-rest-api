@@ -138,7 +138,22 @@ spec = do
             res <- route routes authorReq
             getBody res `shouldReturn` "Not found"
             responseStatus res `shouldBe` status404
-        -- TODO :
-        -- emty routes
-        -- duplicate routes
+        it "should not call any handlers and respond with 404 on empty routes"
+            $ do
+                  res <- route [] defaultRequest
+                  getBody res `shouldReturn` "Not found"
+                  responseStatus res `shouldBe` status404
+        it "should call first handler on duplicate routes" $ do
+            let routesDuplicate =
+                    [ (createAuthorRoute, const $ pure responseOk)
+                    , ( createAuthorRoute
+                      , const $ error "Second route should not be called"
+                      )
+                    ]
+                authorReq = defaultRequest { requestMethod = "POST"
+                                           , pathInfo      = ["api", "author"]
+                                           }
+            res <- route routesDuplicate authorReq
+            getBody res `shouldReturn` "Ok"
+            responseStatus res `shouldBe` status200
 

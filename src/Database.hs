@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeOperators #-}
 module Database where
 
 import           Database.PostgreSQL.Simple
@@ -15,6 +16,7 @@ import           Data.Monoid                    ( (<>) )
 import           Data.Time
 import           GHC.Int
 
+
 data User = User {
   userId :: Integer,
   userName :: T.Text,
@@ -22,7 +24,7 @@ data User = User {
   userAvatar :: T.Text,
   userDateCreated :: LocalTime,
   userIsAdmin :: Bool
-}
+} deriving Show
 
 instance FromRow User where
   fromRow = User <$> field <*> field <*> field <*> field <*> field <*> field
@@ -41,7 +43,7 @@ data Author = Author {
   authorId :: Integer,
   authorUserId :: Integer,
   authorDescription :: T.Text
-}
+} deriving Show
 
 instance FromRow Author where
   fromRow = Author <$> field <*> field <*> field
@@ -80,6 +82,18 @@ migrate conn = do
 getList :: FromRow a => Query -> IO [a]
 getList tableName = bracket (connect connectInfo) close
   $ \conn -> query_ conn $ "SELECT * FROM " <> tableName
+
+getAuthorsList :: IO [(User, Author)]
+getAuthorsList = bracket (connect connectInfo) close $ \conn ->
+  fmap inductiveTupleToTuple
+    <$> (query_ conn authorsQuery :: IO [User :. Author])
+ where
+  authorsQuery
+    = "SELECT  u.*, a.*  FROM authors AS a \
+    \INNER JOIN users AS u \
+    \ON u.user_id = a.user_id"
+
+inductiveTupleToTuple (u :. a) = (u, a)
 
 addAuthorToDB :: (UserRaw, AuthorRaw) -> IO (User, Author)
 addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
