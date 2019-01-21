@@ -8,6 +8,10 @@ import           Network.Wai
 import           Network.HTTP.Types
 import           Handlers
 
+{-TO DO
+Разделить функционал для любого сервера и новостного 
+-}
+
 data Route = PathRoute Text Route | DynamicRoute Text Route | MethodRoute ByteString
 
 createAuthorRoute :: Route
@@ -16,10 +20,18 @@ createAuthorRoute = PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
 getAuthorsListRoute :: Route
 getAuthorsListRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "GET"
 
+createUserRoute :: Route
+createUserRoute = PathRoute "api" $ PathRoute "user" $ MethodRoute "POST"
+
+getUsersListRoute :: Route
+getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
+
 routes :: [(Route, Handler)]
 routes =
   [ (createAuthorRoute  , createAuthorHandler)
   , (getAuthorsListRoute, getAuthorsListHandler)
+  , (createUserRoute    , createUserHandler)
+  , (getUsersListRoute  , getUsersListHandler)
   , ( MethodRoute "GET"
     , const $ pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )

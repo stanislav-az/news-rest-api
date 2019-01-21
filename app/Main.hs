@@ -30,6 +30,6 @@ logging app req respond = app
 main :: IO ()
 main = do
   putStrLn "Starting server at: \n"
-  putStrLn $ "http://localhost:8080/"
+  putStrLn "http://localhost:8080/"
   run 8080 (logging app)
 

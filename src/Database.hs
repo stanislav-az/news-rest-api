@@ -83,6 +83,11 @@ getList :: FromRow a => Query -> IO [a]
 getList tableName = bracket (connect connectInfo) close
   $ \conn -> query_ conn $ "SELECT * FROM " <> tableName
 
+getUsersList :: IO [User]
+getUsersList = getList "users" {-bracket (connect connectInfo) close
+  $ \conn -> query_ conn usersQuery
+  where usersQuery = "SELECT * FROM users"-}
+
 getAuthorsList :: IO [(User, Author)]
 getAuthorsList = bracket (connect connectInfo) close $ \conn ->
   fmap inductiveTupleToTuple
@@ -115,3 +120,9 @@ insertUserQuery =
 insertAuthorQuery :: Query
 insertAuthorQuery =
   "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) RETURNING author_id, user_id, description"
+
+addUserToDB :: UserRaw -> IO User
+addUserToDB UserRaw {..} = bracket (connect connectInfo) close $ \conn ->
+  head <$> query conn
+                 insertUserQuery
+                 (userRawName, userRawSurname, userRawAvatar)

@@ -51,6 +51,24 @@ instance FromJSON CreateAuthorRequest where
       <*> v
       .:  "description"
 
+newtype CreateUserRequest = CreateUserRequest UserRaw
+
+newtype CreateUserResponse = CreateUserResponse User
+
+instance ToJSON CreateUserResponse where
+  toJSON (CreateUserResponse User {..}) = object
+    [ "user_id" .= userId
+    , "name" .= userName
+    , "surname" .= userSurname
+    , "avatar" .= userAvatar
+    , "date_created" .= userDateCreated
+    , "is_admin" .= userIsAdmin
+    ]
+
+instance FromJSON CreateUserRequest where
+  parseJSON = withObject "CreateUserRequest" $ \v ->
+    fmap CreateUserRequest $ UserRaw <$> v .: "name" <*> v .: "surname" <*> v .: "avatar"
+
 requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
 requestToAuthor CreateAuthorRequest {..} =
   ( UserRaw { userRawName    = createAuthorRequestName
@@ -71,3 +89,9 @@ authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
   , createAuthorResponseDateCreated = userDateCreated
   , createAuthorResponseIsAdmin     = userIsAdmin
   }
+
+requestToUser :: CreateUserRequest -> UserRaw
+requestToUser (CreateUserRequest user) = user
+
+userToResponse :: User -> CreateUserResponse
+userToResponse = CreateUserResponse

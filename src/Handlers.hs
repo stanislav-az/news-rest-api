@@ -24,7 +24,6 @@ createAuthorHandler req = do
   createAuthor authorData = do
     (user, author) <- addAuthorToDB $ requestToAuthor authorData
     let authorJSON = encode $ authorToResponse (user, author)
-    BC.putStrLn "Students page accessed"
     pure $ responseLBS status200
                        [("Content-Type", "application/json")]
                        authorJSON
@@ -37,7 +36,30 @@ getAuthorsListHandler req = do
   usersAndAuthors <- getAuthorsList
   let authors          = authorToResponse <$> usersAndAuthors
       printableAuthors = encode authors
-  putStrLn "Students page accessed"
   pure $ responseLBS status200
                      [("Content-Type", "application/json")]
                      printableAuthors
+
+createUserHandler :: Handler
+createUserHandler req = do
+  body <- requestBody req
+  let createUserData =
+        eitherDecode $ LB.fromStrict body :: Either String CreateUserRequest
+  either reportParseError createUser createUserData
+ where
+  createUser userData = do
+    user <- addUserToDB $ requestToUser userData
+    let userJSON = encode $ userToResponse user
+    pure $ responseLBS status200 [("Content-Type", "application/json")] userJSON
+  reportParseError err = pure $ responseLBS status400
+                                            [("Content-Type", "plain/text")]
+                                            ("Parse error: " <> BC.pack err)
+
+getUsersListHandler :: Handler
+getUsersListHandler req = do
+  usersDB <- getUsersList
+  let users          = userToResponse <$> usersDB
+      printableUsers = encode users
+  pure $ responseLBS status200
+                     [("Content-Type", "application/json")]
+                     printableUsers
