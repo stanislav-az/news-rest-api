@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Database where
 
 import           Database.PostgreSQL.Simple
@@ -8,13 +10,15 @@ import           Database.PostgreSQL.Simple.ToRow
 import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.ToField
 import           Database.PostgreSQL.Simple.Migration
+import           Database.PostgreSQL.Simple.Types
 import           System.Directory               ( createDirectoryIfMissing )
-import           Data.Text                     as T
+import qualified Data.Text                     as T
                                          hiding ( head )
 import           Control.Exception
 import           Data.Monoid                    ( (<>) )
 import           Data.Time
 import           GHC.Int
+import           Data.String
 
 
 data User = User {
@@ -56,6 +60,12 @@ data UserRaw = UserRaw {
   userRawName :: T.Text,
   userRawSurname :: T.Text,
   userRawAvatar :: T.Text
+}
+
+data UserRawPartial = UserRawPartial {
+  userRawPartialName :: Maybe T.Text,
+  userRawPartialSurname :: Maybe T.Text,
+  userRawPartialAvatar :: Maybe T.Text
 }
 
 initializeDB :: IO ()
@@ -126,3 +136,30 @@ addUserToDB UserRaw {..} = bracket (connect connectInfo) close $ \conn ->
   head <$> query conn
                  insertUserQuery
                  (userRawName, userRawSurname, userRawAvatar)
+
+updateUser :: T.Text -> UserRawPartial -> IO User
+updateUser uid user = bracket (connect connectInfo) close $ \conn -> do
+  let qText = (updateUserQuery uid user)
+  print qText
+  res <- query conn qText ()
+  pure $ head res
+updateUserQuery :: T.Text -> UserRawPartial -> Query
+updateUserQuery uid UserRawPartial {..} =
+  let
+    toQuery  = fromString . T.unpack
+    nameExpr = maybe "" (\name -> "name = '" <> name <> "'") userRawPartialName
+    surnameExpr =
+      maybe "" (((<>) "'") . ((<>) "surname= '")) userRawPartialSurname
+    avatarExpr =
+      maybe "" (((<>) "'") . ((<>) "avatar= '")) userRawPartialAvatar
+    params =
+      toQuery
+        . T.intercalate ","
+        . filter (not . T.null)
+        $ [nameExpr, surnameExpr, avatarExpr]
+  in
+    "UPDATE users SET "
+    <> params
+    <> "WHERE user_id="
+    <> toQuery uid
+    <> "RETURNING user_id, name, surname, avatar, date_created, is_admin"

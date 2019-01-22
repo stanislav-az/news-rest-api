@@ -6,6 +6,7 @@ import           Data.Aeson
 import qualified Data.Text                     as T
 import           Data.Time
 import           Database
+import           Data.Functor.Identity
 
 
 data CreateAuthorRequest = CreateAuthorRequest {
@@ -51,7 +52,15 @@ instance FromJSON CreateAuthorRequest where
       <*> v
       .:  "description"
 
-newtype CreateUserRequest = CreateUserRequest UserRaw
+data UserRequestT f = UserRequestT {
+  urName :: f T.Text,
+  urSurname :: f T.Text,
+  urAvatar :: f T.Text
+}
+
+newtype CreateUserRequest = CreateUserRequest (UserRequestT Identity)
+
+newtype UpdateUserRequest = UpdateUserRequest (UserRequestT Maybe)
 
 newtype CreateUserResponse = CreateUserResponse User
 
@@ -67,7 +76,19 @@ instance ToJSON CreateUserResponse where
 
 instance FromJSON CreateUserRequest where
   parseJSON = withObject "CreateUserRequest" $ \v ->
-    fmap CreateUserRequest $ UserRaw <$> v .: "name" <*> v .: "surname" <*> v .: "avatar"
+    fmap CreateUserRequest
+      $   UserRequestT
+      <$> (Identity <$> (v .: "name"))
+      <*> (Identity <$> (v .: "surname"))
+      <*> (Identity <$> (v .: "avatar"))
+
+instance FromJSON UpdateUserRequest where
+  parseJSON = withObject "UpdateUserRequest" $ \v ->
+    fmap UpdateUserRequest
+      $   UserRequestT
+      <$> v .:? "name"
+      <*> v .:? "surname"
+      <*> v .:? "avatar"
 
 requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
 requestToAuthor CreateAuthorRequest {..} =
@@ -91,7 +112,12 @@ authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
   }
 
 requestToUser :: CreateUserRequest -> UserRaw
-requestToUser (CreateUserRequest user) = user
+requestToUser (CreateUserRequest UserRequestT {..}) =
+  UserRaw (runIdentity urName) (runIdentity urSurname) (runIdentity urAvatar)
+
+requestToUpdateUser :: UpdateUserRequest -> UserRawPartial
+requestToUpdateUser (UpdateUserRequest UserRequestT {..}) =
+  UserRawPartial urName urSurname urAvatar
 
 userToResponse :: User -> CreateUserResponse
 userToResponse = CreateUserResponse

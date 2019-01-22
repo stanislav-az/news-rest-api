@@ -27,9 +27,6 @@ createAuthorHandler req = do
     pure $ responseLBS status200
                        [("Content-Type", "application/json")]
                        authorJSON
-  reportParseError err = pure $ responseLBS status400
-                                            [("Content-Type", "plain/text")]
-                                            ("Parse error: " <> BC.pack err)
 
 getAuthorsListHandler :: Handler
 getAuthorsListHandler req = do
@@ -51,9 +48,10 @@ createUserHandler req = do
     user <- addUserToDB $ requestToUser userData
     let userJSON = encode $ userToResponse user
     pure $ responseLBS status200 [("Content-Type", "application/json")] userJSON
-  reportParseError err = pure $ responseLBS status400
-                                            [("Content-Type", "plain/text")]
-                                            ("Parse error: " <> BC.pack err)
+
+reportParseError err = pure $ responseLBS status400
+                                          [("Content-Type", "plain/text")]
+                                          ("Parse error: " <> BC.pack err)
 
 getUsersListHandler :: Handler
 getUsersListHandler req = do
@@ -63,3 +61,23 @@ getUsersListHandler req = do
   pure $ responseLBS status200
                      [("Content-Type", "application/json")]
                      printableUsers
+
+getUidFromUrl :: [T.Text] -> Either String T.Text
+getUidFromUrl ["api", "user", uid] = Right uid
+getUidFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
+
+updateUserHandler :: Handler
+updateUserHandler req = do
+  body <- requestBody req
+  let updateUserData =
+        eitherDecode $ LB.fromStrict body :: Either String UpdateUserRequest
+      userId = either error id (getUidFromUrl $ pathInfo req)
+
+  either reportParseError (goUpdateUser userId) updateUserData
+ where
+  goUpdateUser :: T.Text -> UpdateUserRequest -> IO Response
+  goUpdateUser uid userData = do
+    let partial = requestToUpdateUser userData
+    user <- updateUser uid partial
+    let userJSON = encode $ userToResponse user
+    pure $ responseLBS status200 [("Content-Type", "application/json")] userJSON
