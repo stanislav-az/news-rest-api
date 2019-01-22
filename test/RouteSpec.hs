@@ -6,7 +6,7 @@ module RouteSpec
 where
 
 import           Test.Hspec
-import           Router                         ( isCorrectRoute
+import           WebServer.Router               ( isCorrectRoute
                                                 , Route(..)
                                                 , route
                                                 )

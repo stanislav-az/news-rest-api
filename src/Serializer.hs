@@ -5,7 +5,8 @@ module Serializer where
 import           Data.Aeson
 import qualified Data.Text                     as T
 import           Data.Time
-import           Database
+import           Database.Models.Author
+import           Database.Models.User
 import           Data.Functor.Identity
 
 
