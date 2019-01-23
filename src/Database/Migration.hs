@@ -1,11 +1,10 @@
-module Database.Database where
+module Database.Migration where
 
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.Migration
 import           System.Directory               ( createDirectoryIfMissing )
-import           Control.Exception (bracket)
-import Database.Connection
-import Database.Models.User
+import           Control.Exception              ( bracket )
+import           Database.Connection
 
 initializeDB :: IO ()
 initializeDB = do

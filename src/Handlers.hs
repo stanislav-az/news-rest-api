@@ -7,7 +7,8 @@ import           Network.HTTP.Types
 import qualified Data.ByteString.Lazy          as LB
 import qualified Data.ByteString.Lazy.Char8    as BC
 import qualified Data.Text                     as T
-import           Serializer
+import           Serializer.User
+import           Serializer.Author
 import           Data.Aeson
 import           Database.Queries.Author
 import           Database.Queries.User
