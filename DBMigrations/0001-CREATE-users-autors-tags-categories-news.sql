@@ -64,5 +64,5 @@ CREATE TABLE tags_news(
 CREATE TABLE commentaries(
     commentary_id serial PRIMARY KEY,
     content text NOT NULL,
-    news_id integer REFERENCES news
+    news_id integer REFERENCES news NOT NULL
 );

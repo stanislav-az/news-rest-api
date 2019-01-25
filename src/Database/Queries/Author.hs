@@ -11,6 +11,7 @@ import           Database.PostgreSQL.Simple
 import           Database.Connection
 import           Database.Queries.Queries
 import           Database.Queries.User
+import qualified Data.Text                     as T
 
 getAuthorsList :: IO [(User, Author)]
 getAuthorsList = bracket (connect connectInfo) close $ \conn ->
@@ -34,6 +35,18 @@ addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
     pure (user, author)
 --execute conn insertUserQuery [userRawName, userRawSurname, userRawAvatar]
 
+updateAuthor :: T.Text -> AuthorRaw -> IO Author
+updateAuthor authorId AuthorRaw {..} =
+  bracket (connect connectInfo) close $ \conn ->
+    head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
+
 insertAuthorQuery :: Query
 insertAuthorQuery =
   "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) RETURNING author_id, user_id, description"
+
+updateAuthorQuery :: Query
+updateAuthorQuery =
+  "UPDATE authors SET \
+    \description = ?\
+    \WHERE author_id = ? \
+    \ RETURNING author_id, user_id, description"

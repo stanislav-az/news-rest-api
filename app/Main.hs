@@ -2,6 +2,7 @@ module Main where
 
 import           WebServer.Application
 import           Network.Wai.Handler.Warp       ( run )
+import Database.Migration
 
 main :: IO ()
 main = do

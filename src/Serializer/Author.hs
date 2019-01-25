@@ -28,6 +28,12 @@ instance FromJSON CreateAuthorRequest where
       <*> v
       .:  "description"
 
+newtype UpdateAuthorRequest = UpdateAuthorRequest AuthorRaw
+
+instance FromJSON UpdateAuthorRequest where
+  parseJSON = withObject "UpdateAuthorRequest"
+    $ \v -> UpdateAuthorRequest . AuthorRaw <$> v .: "description"
+
 data CreateAuthorResponse = CreateAuthorResponse {
   createAuthorResponseName :: T.Text,
   createAuthorResponseSurname :: T.Text,
@@ -52,6 +58,15 @@ instance ToJSON CreateAuthorResponse where
       , "is_admin" .= isAdmin
       ]
 
+newtype UpdateAuthorResponse = UpdateAuthorResponse Author
+
+instance ToJSON UpdateAuthorResponse where
+  toJSON (UpdateAuthorResponse Author {..}) = object
+    [ "author_id" .= authorId
+    , "user_id" .= authorUserId
+    , "description" .= authorDescription
+    ]
+
 requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
 requestToAuthor CreateAuthorRequest {..} =
   ( UserRaw { userRawName    = createAuthorRequestName
@@ -60,6 +75,9 @@ requestToAuthor CreateAuthorRequest {..} =
             }
   , AuthorRaw { authorRawDescription = createAuthorRequestDescription }
   )
+
+requestToUpdateAuthor :: UpdateAuthorRequest -> AuthorRaw
+requestToUpdateAuthor (UpdateAuthorRequest author) = author
 
 authorToResponse :: (User, Author) -> CreateAuthorResponse
 authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
@@ -72,3 +90,6 @@ authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
   , createAuthorResponseDateCreated = userDateCreated
   , createAuthorResponseIsAdmin     = userIsAdmin
   }
+
+authorToUpdateResponse :: Author -> UpdateAuthorResponse
+authorToUpdateResponse = UpdateAuthorResponse
