@@ -11,9 +11,11 @@ import           Data.Aeson
 import           Serializer.User
 import           Serializer.Author
 import           Serializer.Tag
+import           Serializer.Category
 import           Database.Queries.Author
 import           Database.Queries.User
 import           Database.Queries.Tag
+import           Database.Queries.Category
 
 type Handler = Request -> IO Response
 
@@ -145,8 +147,57 @@ updateTagHandler req = do
   either (pure . reportParseError) (goUpdateTag tagId) updateTagData
  where
   goUpdateTag :: T.Text -> UpdateTagRequest -> IO Response
-  goUpdateTag uid tagData = do
+  goUpdateTag tagId tagData = do
     let partial = requestToUpdateTag tagData
-    tag <- updateTag uid partial
+    tag <- updateTag tagId partial
     let tagJSON = encode $ tagToResponse tag
     pure $ responseLBS status200 [("Content-Type", "application/json")] tagJSON
+
+-- Category
+
+createCategoryHandler :: Handler
+createCategoryHandler req = do
+  body <- requestBody req
+  let createCategoryData =
+        eitherDecode $ LB.fromStrict body :: Either String CreateCategoryRequest
+  either (pure . reportParseError) createCategory createCategoryData
+ where
+  createCategory categoryData = do
+    category <- addCategoryToDB $ requestToCategory categoryData
+    let categoryJSON = encode $ categoryNestedToResponse category
+    pure $ responseLBS status200
+                       [("Content-Type", "application/json")]
+                       categoryJSON
+
+getCategoriesListHandler :: Handler
+getCategoriesListHandler req = do
+  categoriesDB <- getCategoriesList
+  let categories          = categoryNestedToResponse <$> categoriesDB
+      printableCategories = encode categories
+  pure $ responseLBS status200
+                     [("Content-Type", "application/json")]
+                     printableCategories
+
+getCategoryIdFromUrl :: [T.Text] -> Either String T.Text
+getCategoryIdFromUrl ["api", "category", categoryId] = Right categoryId
+getCategoryIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
+
+updateCategoryHandler :: Handler
+updateCategoryHandler req = do
+  body <- requestBody req
+  let updateCategoryData =
+        eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
+      categoryId = either error id (getCategoryIdFromUrl $ pathInfo req)
+
+  either (pure . reportParseError)
+         (goUpdateCategory categoryId)
+         updateCategoryData
+ where
+  goUpdateCategory :: T.Text -> UpdateCategoryRequest -> IO Response
+  goUpdateCategory categoryId categoryData = do
+    let partial = requestToUpdateCategory categoryData
+    category <- updateCategory categoryId partial
+    let categoryJSON = encode $ categoryNestedToResponse category
+    pure $ responseLBS status200
+                       [("Content-Type", "application/json")]
+                       categoryJSON

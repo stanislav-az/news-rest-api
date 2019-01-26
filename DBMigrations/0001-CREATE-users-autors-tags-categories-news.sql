@@ -41,7 +41,8 @@ CREATE TABLE tags(
 CREATE TABLE categories(
     category_id serial PRIMARY KEY,
     name text,
-    parent_id integer REFERENCES categories
+    parent_id integer REFERENCES categories DEFAULT NULL,
+    CHECK (parent_id <> category_id)
 );
 
 CREATE TABLE news(
