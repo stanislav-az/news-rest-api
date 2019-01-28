@@ -2,7 +2,12 @@ module Main where
 
 import           WebServer.Application
 import           Network.Wai.Handler.Warp       ( run )
-import Database.Migration
+import           Database.Migration
+
+---- TO DO ----
+-- Exception management and logging (use handlers?)
+-- Isolate common patterns in handlers
+-- Filtering, searching, sorting
 
 main :: IO ()
 main = do

@@ -12,10 +12,12 @@ import           Serializer.User
 import           Serializer.Author
 import           Serializer.Tag
 import           Serializer.Category
+import           Serializer.News
 import           Database.Queries.Author
 import           Database.Queries.User
 import           Database.Queries.Tag
 import           Database.Queries.Category
+import           Database.Queries.News
 
 type Handler = Request -> IO Response
 
@@ -201,3 +203,26 @@ updateCategoryHandler req = do
     pure $ responseLBS status200
                        [("Content-Type", "application/json")]
                        categoryJSON
+
+--News
+
+createNewsHandler :: Handler
+createNewsHandler req = do
+  body <- requestBody req
+  let createNewsData =
+        eitherDecode $ LB.fromStrict body :: Either String CreateNewsRequest
+  either (pure . reportParseError) createNews createNewsData
+ where
+  createNews newsData = do
+    news <- addNewsToDB $ requestToNews newsData
+    let newsJSON = encode $ newsToResponse news
+    pure $ responseLBS status200 [("Content-Type", "application/json")] newsJSON
+
+getNewsListHandler :: Handler
+getNewsListHandler req = do
+  newsDB <- getNewsList
+  let news          = newsToResponse <$> newsDB
+      printableNews = encode news
+  pure $ responseLBS status200
+                     [("Content-Type", "application/json")]
+                     printableNews

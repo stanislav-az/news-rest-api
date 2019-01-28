@@ -10,6 +10,8 @@ import           Handlers
 data Route = PathRoute Text Route | DynamicRoute Text Route | MethodRoute ByteString
 
 isCorrectRoute :: Route -> [Text] -> ByteString -> Bool
+-- check 
+-- isCorrectRoute (MethodRoute x) [""] method
 isCorrectRoute (MethodRoute x) [] method | x == method = True
                                          | otherwise   = False
 isCorrectRoute (MethodRoute x) xs method = False
@@ -22,6 +24,7 @@ isCorrectRoute (DynamicRoute s route) (x : xs) method =
 
 
 route :: [(Route, Handler)] -> Request -> IO Response
+-- fold with getting dynamic routes 
 route [] req =
   pure $ responseLBS status404 [("Content-Type", "text/html")] "Not found"
 route (h : hs) req | isCorrectRoute currentRoute path method = snd h req

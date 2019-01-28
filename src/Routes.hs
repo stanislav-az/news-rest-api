@@ -47,6 +47,16 @@ updateCategoryRoute =
 getCategoriesListRoute :: Route
 getCategoriesListRoute = PathRoute "api" $ PathRoute "categories" $ MethodRoute "GET"
 
+createNewsRoute :: Route
+createNewsRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "POST"
+
+updateNewsRoute :: Route
+updateNewsRoute =
+  PathRoute "api" $ PathRoute "news" $ DynamicRoute "id" $ MethodRoute "PATCH"
+
+getNewsListRoute :: Route
+getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
+
 routes :: [(Route, Handler)]
 routes =
   [ (createAuthorRoute  , createAuthorHandler)
@@ -60,6 +70,8 @@ routes =
   , (getTagsListRoute   , getTagsListHandler)
   , (createCategoryRoute, createCategoryHandler)
   , (updateCategoryRoute     , updateCategoryHandler)
+  , (getNewsListRoute   , getNewsListHandler)
+  , (createNewsRoute, createNewsHandler)
   , (getCategoriesListRoute   , getCategoriesListHandler)
   , ( MethodRoute "GET"
     , const $ pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"

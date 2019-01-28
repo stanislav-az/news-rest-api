@@ -1,0 +1,44 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+module Serializer.News where
+
+import           Data.Aeson
+import qualified Data.Text                     as T
+import           Data.Time
+import           Database.Models.News
+import           Data.Functor.Identity
+
+newtype CreateNewsRequest = CreateNewsRequest (NewsRawT Identity)
+
+instance FromJSON CreateNewsRequest where
+  parseJSON = withObject "CreateNewsRequest" $ \v ->
+    fmap CreateNewsRequest
+      $   NewsRawT
+      <$> (Identity <$> (v .: "title"))
+      <*> (Identity <$> (v .: "author_id"))
+      <*> (Identity <$> (v .: "category_id"))
+      <*> (Identity <$> (v .: "content"))
+      <*> (Identity <$> (v .: "main_photo"))
+      <*> (Identity <$> (v .: "is_draft"))
+      <*> (Identity <$> (v .: "tags"))
+
+
+newtype CreateNewsResponse = CreateNewsResponse News
+
+instance ToJSON CreateNewsResponse where
+  toJSON (CreateNewsResponse News {..}) = object
+    [ "news_id" .= newsId
+    , "title" .= newsTitle
+    , "date_created" .= newsDateCreated
+    , "author_id" .= newsAuthorId
+    , "category_id" .= newsCategoryId
+    , "content" .= newsContent
+    , "main_photo" .= newsMainPhoto
+    , "is_draft" .= newsIsDraft
+    ]
+
+requestToNews :: CreateNewsRequest -> NewsRaw
+requestToNews (CreateNewsRequest nrt) = NewsRaw nrt
+
+newsToResponse :: News -> CreateNewsResponse
+newsToResponse = CreateNewsResponse
