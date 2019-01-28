@@ -1,18 +1,15 @@
--- NOT NULL, DEFAULT, ON DELETE, ON UPDATE
+-- TO DO
+--ON DELETE, ON UPDATE
+--Make a trigger which lowercases tags and categories
 
 CREATE TABLE users(
     user_id serial PRIMARY KEY,
     name text NOT NULL,
     surname text NOT NULL, 
     avatar text, 
-    date_created timestamp, -- NOT NULL
+    date_created timestamp DEFAULT current_timestamp,
     is_admin boolean DEFAULT false
     );
-
--- INSERT INTO courses(c_no, title, hours)
---     VALUES 
---         ('CS301', 'Базы данных', 30),
---         ('CS305', 'Сети ЭВМ', 60);
 
 CREATE TABLE authors(
     author_id serial PRIMARY KEY,
@@ -20,40 +17,29 @@ CREATE TABLE authors(
     description text
     );
 
--- INSERT INTO students(s_id, name, start_year)
---     VALUES 
---         (1451, 'Анна', 2014),
---         (1432, 'Виктор', 2014),
---         (1556, 'Нина', 2015);
-
 CREATE TABLE tags(
     tag_id serial PRIMARY KEY,
-    name text
+    name text NOT NULL,
+    UNIQUE (name)
     );
-
--- INSERT INTO exams(s_id, c_no, score)
---     VALUES 
---         (1451, 'CS301', 5),
---         (1556, 'CS301', 5),
---         (1451, 'CS305', 5),
---         (1432, 'CS305', 4);
 
 CREATE TABLE categories(
     category_id serial PRIMARY KEY,
     name text,
     parent_id integer REFERENCES categories DEFAULT NULL,
-    CHECK (parent_id <> category_id)
+    CHECK (parent_id <> category_id),
+    UNIQUE (name)
 );
 
 CREATE TABLE news(
     news_id serial PRIMARY KEY,
-    title text,
-    date_created timestamp,
-    author_id integer REFERENCES authors,
-    category_id integer REFERENCES categories,
+    title text NOT NULL,
+    date_created timestamp DEFAULT current_timestamp,
+    author_id integer REFERENCES authors NOT NULL,
+    category_id integer REFERENCES categories NOT NULL,
     content text,
     main_photo text,
-    is_draft boolean
+    is_draft boolean DEFAULT true
 );
 
 CREATE TABLE tags_news(
