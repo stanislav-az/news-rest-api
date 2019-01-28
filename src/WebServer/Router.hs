@@ -6,30 +6,35 @@ import           Data.ByteString
 import           Network.Wai
 import           Network.HTTP.Types
 import           Handlers
+import           Authorization
 
 data Route = PathRoute Text Route | DynamicRoute Text Route | MethodRoute ByteString
 
-isCorrectRoute :: Route -> [Text] -> ByteString -> Bool
--- check 
--- isCorrectRoute (MethodRoute x) [""] method
-isCorrectRoute (MethodRoute x) [] method | x == method = True
-                                         | otherwise   = False
-isCorrectRoute (MethodRoute x) xs method = False
-isCorrectRoute route           [] _      = False
-isCorrectRoute (PathRoute s route) (x : xs) method
-  | x == s    = isCorrectRoute route xs method
-  | otherwise = False
-isCorrectRoute (DynamicRoute s route) (x : xs) method =
-  isCorrectRoute route xs method
-
+isCorrectRoute
+  :: DynamicPathsMap -> Route -> [Text] -> ByteString -> (Bool, DynamicPathsMap)
+isCorrectRoute dpMap (MethodRoute x) [] method | x == method = (True, dpMap)
+                                               | otherwise   = (False, dpMap)
+isCorrectRoute dpMap (MethodRoute x) [""] method | x == method = (True, dpMap)
+                                                 | otherwise   = (False, dpMap)
+isCorrectRoute dpMap (MethodRoute x) xs method = (False, dpMap)
+isCorrectRoute dpMap route           [] _      = (False, dpMap)
+isCorrectRoute dpMap (PathRoute s route) (x : xs) method
+  | x == s    = isCorrectRoute dpMap route xs method
+  | otherwise = (False, dpMap)
+isCorrectRoute dpMap (DynamicRoute s route) (x : xs) method =
+  isCorrectRoute ((s, x) : dpMap) route xs method
 
 route :: [(Route, Handler)] -> Request -> IO Response
--- fold with getting dynamic routes 
-route [] req =
-  pure $ responseLBS status404 [("Content-Type", "text/html")] "Not found"
-route (h : hs) req | isCorrectRoute currentRoute path method = snd h req
-                   | otherwise                               = route hs req
+--authorizeAndHandle dpMap req $ snd h
+route [] req = pure notFoundResponse
+route (h : hs) req | isCorrect = snd h dpMap req
+                   | otherwise = route hs req
  where
-  currentRoute = fst h
-  path         = pathInfo req
-  method       = requestMethod req
+  (isCorrect, dpMap) = isCorrectRoute [] currentRoute path method
+  currentRoute       = fst h
+  path               = pathInfo req
+  method             = requestMethod req
+
+notFoundResponse :: Response
+notFoundResponse =
+  responseLBS status404 [("Content-Type", "text/html")] "Not found"

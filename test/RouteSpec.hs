@@ -27,7 +27,7 @@ userAssignRoute :: Route
 userAssignRoute =
     PathRoute "api"
         $ PathRoute "users"
-        $ DynamicRoute "55"
+        $ DynamicRoute "pk"
         $ PathRoute "assign"
         $ MethodRoute "POST"
 
@@ -35,7 +35,7 @@ userRejectRoute :: Route
 userRejectRoute =
     PathRoute "api"
         $ PathRoute "users"
-        $ DynamicRoute "55"
+        $ DynamicRoute "pk"
         $ PathRoute "reject"
         $ MethodRoute "POST"
 
@@ -43,47 +43,77 @@ spec :: Spec
 spec = do
     describe "isCorrectRoute" $ do
         it "should route to root url GET" $ do
-            let res = isCorrectRoute rootRoute [] "GET"
-            res `shouldBe` True
+            let res = isCorrectRoute [] rootRoute [] "GET"
+            res `shouldBe` (True, [])
+        it "should route to root url with / GET" $ do
+            let res = isCorrectRoute [] rootRoute [""] "GET"
+            res `shouldBe` (True, [])
         it "should not route to root url with wrong request method" $ do
-            let res = isCorrectRoute rootRoute [] "POST"
-            res `shouldBe` False
+            let res = isCorrectRoute [] rootRoute [] "POST"
+            (fst res) `shouldBe` False
         it "should not route to non-existing GET url" $ do
-            let res = isCorrectRoute rootRoute ["api", "unknown", "123"] "GET"
-            res `shouldBe` False
-        it "should route to user assign page for user 55 with POST" $ do
-            let
-                res = isCorrectRoute userAssignRoute
-                                     ["api", "users", "55", "assign"]
-                                     "POST"
-            res `shouldBe` True
-        it "should route to user reject page for user 55 with POST" $ do
-            let
-                res = isCorrectRoute userRejectRoute
-                                     ["api", "users", "55", "reject"]
-                                     "POST"
-            res `shouldBe` True
+            let res =
+                    isCorrectRoute [] rootRoute ["api", "unknown", "123"] "GET"
+            (fst res) `shouldBe` False
+        it
+                "should route to user assign page for user 55 with POST and get dynamic path"
+            $ do
+                  let
+                      res = isCorrectRoute []
+                                           userAssignRoute
+                                           ["api", "users", "55", "assign"]
+                                           "POST"
+                  res `shouldBe` (True, [("pk", "55")])
+        it
+                "should route to user reject page for user 55 with POST and get dynamic path"
+            $ do
+                  let
+                      res = isCorrectRoute []
+                                           userRejectRoute
+                                           ["api", "users", "55", "reject"]
+                                           "POST"
+                  res `shouldBe` (True, [("pk", "55")])
+        it
+                "should route to user assign page with / for user 55 with POST and get dynamic path"
+            $ do
+                  let
+                      res = isCorrectRoute []
+                                           userAssignRoute
+                                           ["api", "users", "55", "assign", ""]
+                                           "POST"
+                  res `shouldBe` (True, [("pk", "55")])
+        it
+                "should route to user reject page with / for user 55 with POST and get dynamic path"
+            $ do
+                  let
+                      res = isCorrectRoute []
+                                           userRejectRoute
+                                           ["api", "users", "55", "reject", ""]
+                                           "POST"
+                  res `shouldBe` (True, [("pk", "55")])
         it "should not route if url is longer than existing routes" $ do
             let res = isCorrectRoute
+                    []
                     userRejectRoute
                     ["api", "users", "55", "reject", "something"]
                     "POST"
-            res `shouldBe` False
+            (fst res) `shouldBe` False
         it "should not route if url is shorter than existing routes" $ do
-            let res = isCorrectRoute userRejectRoute ["api", "users"] "POST"
-            res `shouldBe` False
+            let res = isCorrectRoute [] userRejectRoute ["api", "users"] "POST"
+            (fst res) `shouldBe` False
         it "should not route if url is empty" $ do
-            let res = isCorrectRoute userRejectRoute [] "POST"
-            res `shouldBe` False
+            let res = isCorrectRoute [] userRejectRoute [] "POST"
+            (fst res) `shouldBe` False
         it "should not route if has wrong sub-path" $ do
             let
-                res = isCorrectRoute userRejectRoute
+                res = isCorrectRoute []
+                                     userRejectRoute
                                      ["api", "user", "55", "reject"]
                                      "POST"
-            res `shouldBe` False
-        it "should route to dynamic root route" $ do
-            let res = isCorrectRoute dynamicRoute ["123"] "POST"
-            res `shouldBe` True
+            (fst res) `shouldBe` False
+        it "should route to dynamic root route and get dynamic path" $ do
+            let res = isCorrectRoute [] dynamicRoute ["123"] "POST"
+            res `shouldBe` (True, [("pk", "123")])
 
     describe "route" $ do
         let responseOk =
@@ -100,7 +130,7 @@ spec = do
             createAuthorRoute =
                 PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
 
-            routes = [(createAuthorRoute, const $ pure responseOk)]
+            routes = [(createAuthorRoute, \_ _ -> pure responseOk)]
             getBody res = do
                 let (_, _, f) = responseToStream res
                 f $ \streamingBody -> do
@@ -145,9 +175,9 @@ spec = do
                   responseStatus res `shouldBe` status404
         it "should call first handler on duplicate routes" $ do
             let routesDuplicate =
-                    [ (createAuthorRoute, const $ pure responseOk)
+                    [ (createAuthorRoute, \_ _ -> pure responseOk)
                     , ( createAuthorRoute
-                      , const $ error "Second route should not be called"
+                      , \_ _ -> error "Second route should not be called"
                       )
                     ]
                 authorReq = defaultRequest { requestMethod = "POST"

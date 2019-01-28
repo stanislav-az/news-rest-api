@@ -19,14 +19,17 @@ import           Database.Queries.Tag
 import           Database.Queries.Category
 import           Database.Queries.News
 
-type Handler = Request -> IO Response
+-- dynamic path information type and value pairs
+type DynamicPathsMap = [(T.Text, T.Text)]
+
+type Handler = DynamicPathsMap -> Request -> IO Response
 
 getAuthorIdFromUrl :: [T.Text] -> Either String T.Text
 getAuthorIdFromUrl ["api", "author", authorId] = Right authorId
 getAuthorIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
 
 updateAuthorHandler :: Handler
-updateAuthorHandler req = do
+updateAuthorHandler dpMap req = do
   body <- requestBody req
   let updateAuthorData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
@@ -44,7 +47,7 @@ updateAuthorHandler req = do
                        authorJSON
 
 createAuthorHandler :: Handler
-createAuthorHandler req = do
+createAuthorHandler dpMap req = do
   body <- requestBody req
   let createAuthorData =
         eitherDecode $ LB.fromStrict body :: Either String CreateAuthorRequest
@@ -58,7 +61,7 @@ createAuthorHandler req = do
                        authorJSON
 
 getAuthorsListHandler :: Handler
-getAuthorsListHandler req = do
+getAuthorsListHandler dpMap req = do
   usersAndAuthors <- getAuthorsList
   let authors          = authorToResponse <$> usersAndAuthors
       printableAuthors = encode authors
@@ -67,7 +70,7 @@ getAuthorsListHandler req = do
                      printableAuthors
 
 createUserHandler :: Handler
-createUserHandler req = do
+createUserHandler dpMap req = do
   body <- requestBody req
   let createUserData =
         eitherDecode $ LB.fromStrict body :: Either String CreateUserRequest
@@ -84,7 +87,7 @@ reportParseError err = responseLBS status400
                                    ("Parse error: " <> BC.pack err)
 
 getUsersListHandler :: Handler
-getUsersListHandler req = do
+getUsersListHandler dpMap req = do
   usersDB <- getUsersList
   let users          = userToResponse <$> usersDB
       printableUsers = encode users
@@ -97,7 +100,7 @@ getUserIdFromUrl ["api", "user", userId] = Right userId
 getUserIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
 
 updateUserHandler :: Handler
-updateUserHandler req = do
+updateUserHandler dpMap req = do
   body <- requestBody req
   let updateUserData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateUserRequest
@@ -115,7 +118,7 @@ updateUserHandler req = do
 -- Tag
 
 createTagHandler :: Handler
-createTagHandler req = do
+createTagHandler dpMap req = do
   body <- requestBody req
   let createTagData =
         eitherDecode $ LB.fromStrict body :: Either String CreateTagRequest
@@ -127,7 +130,7 @@ createTagHandler req = do
     pure $ responseLBS status200 [("Content-Type", "application/json")] tagJSON
 
 getTagsListHandler :: Handler
-getTagsListHandler req = do
+getTagsListHandler dpMap req = do
   tagsDB <- getTagsList
   let tags          = tagToResponse <$> tagsDB
       printableTags = encode tags
@@ -140,7 +143,7 @@ getTagIdFromUrl ["api", "tag", tagId] = Right tagId
 getTagIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
 
 updateTagHandler :: Handler
-updateTagHandler req = do
+updateTagHandler dpMap req = do
   body <- requestBody req
   let updateTagData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateTagRequest
@@ -158,7 +161,7 @@ updateTagHandler req = do
 -- Category
 
 createCategoryHandler :: Handler
-createCategoryHandler req = do
+createCategoryHandler dpMap req = do
   body <- requestBody req
   let createCategoryData =
         eitherDecode $ LB.fromStrict body :: Either String CreateCategoryRequest
@@ -172,7 +175,7 @@ createCategoryHandler req = do
                        categoryJSON
 
 getCategoriesListHandler :: Handler
-getCategoriesListHandler req = do
+getCategoriesListHandler dpMap req = do
   categoriesDB <- getCategoriesList
   let categories          = categoryNestedToResponse <$> categoriesDB
       printableCategories = encode categories
@@ -185,7 +188,7 @@ getCategoryIdFromUrl ["api", "category", categoryId] = Right categoryId
 getCategoryIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
 
 updateCategoryHandler :: Handler
-updateCategoryHandler req = do
+updateCategoryHandler dpMap req = do
   body <- requestBody req
   let updateCategoryData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
@@ -207,7 +210,7 @@ updateCategoryHandler req = do
 --News
 
 createNewsHandler :: Handler
-createNewsHandler req = do
+createNewsHandler dpMap req = do
   body <- requestBody req
   let createNewsData =
         eitherDecode $ LB.fromStrict body :: Either String CreateNewsRequest
@@ -219,7 +222,7 @@ createNewsHandler req = do
     pure $ responseLBS status200 [("Content-Type", "application/json")] newsJSON
 
 getNewsListHandler :: Handler
-getNewsListHandler req = do
+getNewsListHandler dpMap req = do
   newsDB <- getNewsList
   let news          = newsToResponse <$> newsDB
       printableNews = encode news

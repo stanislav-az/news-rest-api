@@ -42,10 +42,12 @@ createCategoryRoute =
 
 updateCategoryRoute :: Route
 updateCategoryRoute =
-  PathRoute "api" $ PathRoute "category" $ DynamicRoute "id" $ MethodRoute "PATCH"
+  PathRoute "api" $ PathRoute "category" $ DynamicRoute "id" $ MethodRoute
+    "PATCH"
 
 getCategoriesListRoute :: Route
-getCategoriesListRoute = PathRoute "api" $ PathRoute "categories" $ MethodRoute "GET"
+getCategoriesListRoute =
+  PathRoute "api" $ PathRoute "categories" $ MethodRoute "GET"
 
 createNewsRoute :: Route
 createNewsRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "POST"
@@ -59,21 +61,21 @@ getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  [ (createAuthorRoute  , createAuthorHandler)
-  , (updateAuthorRoute  , updateAuthorHandler)
-  , (getAuthorsListRoute, getAuthorsListHandler)
-  , (createUserRoute    , createUserHandler)
-  , (updateUserRoute    , updateUserHandler)
-  , (getUsersListRoute  , getUsersListHandler)
-  , (createTagRoute     , createTagHandler)
-  , (updateTagRoute     , updateTagHandler)
-  , (getTagsListRoute   , getTagsListHandler)
-  , (createCategoryRoute, createCategoryHandler)
-  , (updateCategoryRoute     , updateCategoryHandler)
-  , (getNewsListRoute   , getNewsListHandler)
-  , (createNewsRoute, createNewsHandler)
-  , (getCategoriesListRoute   , getCategoriesListHandler)
+  [ (createAuthorRoute     , createAuthorHandler)
+  , (updateAuthorRoute     , updateAuthorHandler)
+  , (getAuthorsListRoute   , getAuthorsListHandler)
+  , (createUserRoute       , createUserHandler)
+  , (updateUserRoute       , updateUserHandler)
+  , (getUsersListRoute     , getUsersListHandler)
+  , (createTagRoute        , createTagHandler)
+  , (updateTagRoute        , updateTagHandler)
+  , (getTagsListRoute      , getTagsListHandler)
+  , (createCategoryRoute   , createCategoryHandler)
+  , (updateCategoryRoute   , updateCategoryHandler)
+  , (getNewsListRoute      , getNewsListHandler)
+  , (createNewsRoute       , createNewsHandler)
+  , (getCategoriesListRoute, getCategoriesListHandler)
   , ( MethodRoute "GET"
-    , const $ pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
+    , \_ _ -> pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )
   ]
