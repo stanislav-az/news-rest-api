@@ -5,6 +5,7 @@ import           WebServer.Router
 import           Network.Wai
 import           Network.HTTP.Types
 import           Handlers
+import           Middlewares
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
@@ -61,20 +62,24 @@ getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  [ (createAuthorRoute     , createAuthorHandler)
-  , (updateAuthorRoute     , updateAuthorHandler)
-  , (getAuthorsListRoute   , getAuthorsListHandler)
-  , (createUserRoute       , createUserHandler)
-  , (updateUserRoute       , updateUserHandler)
+  [ (createAuthorRoute  , checkPermission Admin createAuthorHandler)
+  , (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
+  , (getAuthorsListRoute, checkPermission Admin getAuthorsListHandler)
+  , (createUserRoute    , createUserHandler)
+  , ( updateUserRoute
+    , updateUserHandler
+    ) -- No such handler in requirements
   , (getUsersListRoute     , getUsersListHandler)
-  , (createTagRoute        , createTagHandler)
-  , (updateTagRoute        , updateTagHandler)
+  , (createTagRoute        , checkPermission Admin createTagHandler)
+  , (updateTagRoute        , checkPermission Admin updateTagHandler)
   , (getTagsListRoute      , getTagsListHandler)
-  , (createCategoryRoute   , createCategoryHandler)
-  , (updateCategoryRoute   , updateCategoryHandler)
-  , (getNewsListRoute      , getNewsListHandler)
-  , (createNewsRoute       , createNewsHandler)
+  , (createCategoryRoute   , checkPermission Admin createCategoryHandler)
+  , (updateCategoryRoute   , checkPermission Admin updateCategoryHandler)
   , (getCategoriesListRoute, getCategoriesListHandler)
+  , (getNewsListRoute      , getNewsListHandler)
+  , ( createNewsRoute
+    , createNewsHandler
+    ) -- Rename to create draft, Make publish
   , ( MethodRoute "GET"
     , \_ _ -> pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )

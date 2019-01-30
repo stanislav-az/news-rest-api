@@ -16,7 +16,7 @@ addTagToDB :: TagRaw -> IO Tag
 addTagToDB TagRaw {..} = bracket (connect connectInfo) close
   $ \conn -> head <$> query conn insertTagQuery (Only tagRawName)
 
-updateTag :: T.Text -> TagRaw -> IO Tag
+updateTag :: Integer -> TagRaw -> IO Tag
 updateTag tagId TagRaw {..} = bracket (connect connectInfo) close
   $ \conn -> head <$> query conn updateTagQuery (tagRawName, tagId)
 

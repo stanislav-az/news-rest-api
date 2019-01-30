@@ -20,7 +20,7 @@ addCategoryToDB cr =
     )
     >>= nestCategory
 
-updateCategory :: T.Text -> CategoryRawPartial -> IO CategoryNested
+updateCategory :: Integer -> CategoryRawPartial -> IO CategoryNested
 updateCategory categoryId category =
   (bracket (connect connectInfo) close $ \conn ->
       head <$> query conn (updateCategoryQuery category) (Only categoryId)

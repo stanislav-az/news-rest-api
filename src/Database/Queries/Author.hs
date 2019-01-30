@@ -35,7 +35,7 @@ addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
     pure (user, author)
 --execute conn insertUserQuery [userRawName, userRawSurname, userRawAvatar]
 
-updateAuthor :: T.Text -> AuthorRaw -> IO Author
+updateAuthor :: Integer -> AuthorRaw -> IO Author
 updateAuthor authorId AuthorRaw {..} =
   bracket (connect connectInfo) close $ \conn ->
     head <$> query conn updateAuthorQuery (authorRawDescription, authorId)

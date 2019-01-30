@@ -18,26 +18,29 @@ import           Database.Queries.User
 import           Database.Queries.Tag
 import           Database.Queries.Category
 import           Database.Queries.News
+import           Helpers
+import           Data.Maybe                     ( fromMaybe )
 
 -- dynamic path information type and value pairs
 type DynamicPathsMap = [(T.Text, T.Text)]
 
 type Handler = DynamicPathsMap -> Request -> IO Response
 
-getAuthorIdFromUrl :: [T.Text] -> Either String T.Text
-getAuthorIdFromUrl ["api", "author", authorId] = Right authorId
-getAuthorIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
+getIdFromUrl :: DynamicPathsMap -> Either String Integer
+getIdFromUrl dpMap =
+  (maybe (Left "no info") Right $ lookup "id" dpMap) >>= textToInteger
 
 updateAuthorHandler :: Handler
 updateAuthorHandler dpMap req = do
   body <- requestBody req
   let updateAuthorData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
-      authorId = either error id (getAuthorIdFromUrl $ pathInfo req)
+      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
 
   either (pure . reportParseError) (goUpdateAuthor authorId) updateAuthorData
  where
-  goUpdateAuthor :: T.Text -> UpdateAuthorRequest -> IO Response
+  goUpdateAuthor :: Integer -> UpdateAuthorRequest -> IO Response
   goUpdateAuthor authorId authorData = do
     let partial = requestToUpdateAuthor authorData
     author <- updateAuthor authorId partial
@@ -95,23 +98,20 @@ getUsersListHandler dpMap req = do
                      [("Content-Type", "application/json")]
                      printableUsers
 
-getUserIdFromUrl :: [T.Text] -> Either String T.Text
-getUserIdFromUrl ["api", "user", userId] = Right userId
-getUserIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
-
 updateUserHandler :: Handler
 updateUserHandler dpMap req = do
   body <- requestBody req
   let updateUserData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateUserRequest
-      userId = either error id (getUserIdFromUrl $ pathInfo req)
+      userId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
 
   either (pure . reportParseError) (goUpdateUser userId) updateUserData
  where
-  goUpdateUser :: T.Text -> UpdateUserRequest -> IO Response
-  goUpdateUser uid userData = do
+  goUpdateUser :: Integer -> UpdateUserRequest -> IO Response
+  goUpdateUser userId userData = do
     let partial = requestToUpdateUser userData
-    user <- updateUser uid partial
+    user <- updateUser userId partial
     let userJSON = encode $ userToResponse user
     pure $ responseLBS status200 [("Content-Type", "application/json")] userJSON
 
@@ -138,20 +138,17 @@ getTagsListHandler dpMap req = do
                      [("Content-Type", "application/json")]
                      printableTags
 
-getTagIdFromUrl :: [T.Text] -> Either String T.Text
-getTagIdFromUrl ["api", "tag", tagId] = Right tagId
-getTagIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
-
 updateTagHandler :: Handler
 updateTagHandler dpMap req = do
   body <- requestBody req
   let updateTagData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateTagRequest
-      tagId = either error id (getTagIdFromUrl $ pathInfo req)
+      tagId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
 
   either (pure . reportParseError) (goUpdateTag tagId) updateTagData
  where
-  goUpdateTag :: T.Text -> UpdateTagRequest -> IO Response
+  goUpdateTag :: Integer -> UpdateTagRequest -> IO Response
   goUpdateTag tagId tagData = do
     let partial = requestToUpdateTag tagData
     tag <- updateTag tagId partial
@@ -183,22 +180,19 @@ getCategoriesListHandler dpMap req = do
                      [("Content-Type", "application/json")]
                      printableCategories
 
-getCategoryIdFromUrl :: [T.Text] -> Either String T.Text
-getCategoryIdFromUrl ["api", "category", categoryId] = Right categoryId
-getCategoryIdFromUrl path = Left $ "incorrect_data" <> (show $ mconcat path)
-
 updateCategoryHandler :: Handler
 updateCategoryHandler dpMap req = do
   body <- requestBody req
   let updateCategoryData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
-      categoryId = either error id (getCategoryIdFromUrl $ pathInfo req)
+      categoryId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
 
   either (pure . reportParseError)
          (goUpdateCategory categoryId)
          updateCategoryData
  where
-  goUpdateCategory :: T.Text -> UpdateCategoryRequest -> IO Response
+  goUpdateCategory :: Integer -> UpdateCategoryRequest -> IO Response
   goUpdateCategory categoryId categoryData = do
     let partial = requestToUpdateCategory categoryData
     category <- updateCategory categoryId partial
