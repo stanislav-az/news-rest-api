@@ -35,15 +35,15 @@ updateAuthorHandler dpMap req = do
   body <- requestBody req
   let updateAuthorData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
-      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+      userId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
 
-  either (pure . reportParseError) (goUpdateAuthor authorId) updateAuthorData
+  either (pure . reportParseError) (goUpdateAuthor userId) updateAuthorData
  where
   goUpdateAuthor :: Integer -> UpdateAuthorRequest -> IO Response
-  goUpdateAuthor authorId authorData = do
+  goUpdateAuthor userId authorData = do
     let partial = requestToUpdateAuthor authorData
-    author <- updateAuthor authorId partial
+    author <- updateAuthor userId partial
     let authorJSON = encode $ authorToUpdateResponse author
     pure $ responseLBS status200
                        [("Content-Type", "application/json")]
@@ -97,23 +97,6 @@ getUsersListHandler dpMap req = do
   pure $ responseLBS status200
                      [("Content-Type", "application/json")]
                      printableUsers
-
-updateUserHandler :: Handler
-updateUserHandler dpMap req = do
-  body <- requestBody req
-  let updateUserData =
-        eitherDecode $ LB.fromStrict body :: Either String UpdateUserRequest
-      userId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-
-  either (pure . reportParseError) (goUpdateUser userId) updateUserData
- where
-  goUpdateUser :: Integer -> UpdateUserRequest -> IO Response
-  goUpdateUser userId userData = do
-    let partial = requestToUpdateUser userData
-    user <- updateUser userId partial
-    let userJSON = encode $ userToResponse user
-    pure $ responseLBS status200 [("Content-Type", "application/json")] userJSON
 
 -- Tag
 
@@ -183,10 +166,11 @@ getCategoriesListHandler dpMap req = do
 updateCategoryHandler :: Handler
 updateCategoryHandler dpMap req = do
   body <- requestBody req
-  let updateCategoryData =
-        eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
-      categoryId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
+  let
+    updateCategoryData =
+      eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
+    categoryId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+      $ getIdFromUrl dpMap
 
   either (pure . reportParseError)
          (goUpdateCategory categoryId)
@@ -203,14 +187,14 @@ updateCategoryHandler dpMap req = do
 
 --News
 
-createNewsHandler :: Handler
-createNewsHandler dpMap req = do
+createNewsDraftHandler :: Handler
+createNewsDraftHandler dpMap req = do
   body <- requestBody req
-  let createNewsData =
+  let createNewsDraftData =
         eitherDecode $ LB.fromStrict body :: Either String CreateNewsRequest
-  either (pure . reportParseError) createNews createNewsData
+  either (pure . reportParseError) createNewsDraft createNewsDraftData
  where
-  createNews newsData = do
+  createNewsDraft newsData = do
     news <- addNewsToDB $ requestToNews newsData
     let newsJSON = encode $ newsToResponse news
     pure $ responseLBS status200 [("Content-Type", "application/json")] newsJSON
@@ -223,3 +207,29 @@ getNewsListHandler dpMap req = do
   pure $ responseLBS status200
                      [("Content-Type", "application/json")]
                      printableNews
+
+updateNewsHandler :: Handler
+updateNewsHandler dpMap req = do
+  body <- requestBody req
+  let updateNewsData =
+        eitherDecode $ LB.fromStrict body :: Either String UpdateNewsRequest
+      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
+
+  either (pure . reportParseError) (goUpdateNews newsId) updateNewsData
+ where
+  goUpdateNews :: Integer -> UpdateNewsRequest -> IO Response
+  goUpdateNews newsId newsData = do
+    let partial = requestToUpdateNews newsData
+    news <- updateNews newsId partial
+    let newsJSON = encode $ newsToResponse news
+    pure $ responseLBS status200 [("Content-Type", "application/json")] newsJSON
+
+publishNewsHandler :: Handler
+publishNewsHandler dpMap req = do
+  body <- requestBody req
+  let newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
+  news <- publishNews newsId
+  let newsJSON = encode $ newsToResponse news
+  pure $ responseLBS status200 [("Content-Type", "application/json")] newsJSON

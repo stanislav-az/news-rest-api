@@ -12,8 +12,7 @@ CREATE TABLE users(
     );
 
 CREATE TABLE authors(
-    author_id serial PRIMARY KEY,
-    user_id integer REFERENCES users NOT NULL,
+    user_id integer PRIMARY KEY REFERENCES users,
     description text
     );
 
@@ -35,7 +34,7 @@ CREATE TABLE news(
     news_id serial PRIMARY KEY,
     title text NOT NULL,
     date_created timestamp DEFAULT current_timestamp,
-    author_id integer REFERENCES authors NOT NULL,
+    user_id integer REFERENCES authors NOT NULL,
     category_id integer REFERENCES categories NOT NULL,
     content text,
     main_photo text,

@@ -39,33 +39,27 @@ data CreateAuthorResponse = CreateAuthorResponse {
   createAuthorResponseSurname :: T.Text,
   createAuthorResponseAvatar :: T.Text,
   createAuthorResponseDescription :: T.Text,
-  createAuthorResponseId :: Integer,
   createAuthorResponseUserId :: Integer,
   createAuthorResponseDateCreated :: LocalTime,
   createAuthorResponseIsAdmin :: Bool
 }
 
 instance ToJSON CreateAuthorResponse where
-  toJSON (CreateAuthorResponse name surname avatar desc id uid date isAdmin) =
-    object
-      [ "name" .= name
-      , "surname" .= surname
-      , "avatar" .= avatar
-      , "description" .= desc
-      , "author_id" .= id
-      , "user_id" .= uid
-      , "date_created" .= date
-      , "is_admin" .= isAdmin
-      ]
+  toJSON CreateAuthorResponse {..} = object
+    [ "name" .= createAuthorResponseName
+    , "surname" .= createAuthorResponseSurname
+    , "avatar" .= createAuthorResponseAvatar
+    , "description" .= createAuthorResponseDescription
+    , "user_id" .= createAuthorResponseUserId
+    , "date_created" .= createAuthorResponseDateCreated
+    , "is_admin" .= createAuthorResponseIsAdmin
+    ]
 
 newtype UpdateAuthorResponse = UpdateAuthorResponse Author
 
 instance ToJSON UpdateAuthorResponse where
-  toJSON (UpdateAuthorResponse Author {..}) = object
-    [ "author_id" .= authorId
-    , "user_id" .= authorUserId
-    , "description" .= authorDescription
-    ]
+  toJSON (UpdateAuthorResponse Author {..}) =
+    object ["user_id" .= authorUserId, "description" .= authorDescription]
 
 requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
 requestToAuthor CreateAuthorRequest {..} =
@@ -85,7 +79,6 @@ authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
   , createAuthorResponseSurname     = userSurname
   , createAuthorResponseAvatar      = userAvatar
   , createAuthorResponseDescription = authorDescription
-  , createAuthorResponseId          = authorId
   , createAuthorResponseUserId      = userId
   , createAuthorResponseDateCreated = userDateCreated
   , createAuthorResponseIsAdmin     = userIsAdmin

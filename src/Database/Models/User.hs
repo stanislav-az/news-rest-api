@@ -21,9 +21,3 @@ data UserRaw = UserRaw {
   userRawSurname :: Text,
   userRawAvatar :: Text
 }
-
-data UserRawPartial = UserRawPartial {
-  userRawPartialName :: Maybe Text,
-  userRawPartialSurname :: Maybe Text,
-  userRawPartialAvatar :: Maybe Text
-}

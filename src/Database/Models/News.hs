@@ -9,7 +9,7 @@ data News = News {
   newsId :: Integer,
   newsTitle :: Text,
   newsDateCreated :: LocalTime,
-  newsAuthorId :: Integer,
+  newsUserId :: Integer,
   newsCategoryId :: Integer,
   newsContent :: Text,
   newsMainPhoto :: Text,
@@ -30,11 +30,10 @@ instance FromRow News where
 
 data NewsRawT f = NewsRawT {
   newsRawTitle :: f Text,
-  newsRawAuthorId :: f Integer,
+  newsRawUserId :: f Integer,
   newsRawCategoryId :: f Integer,
   newsRawContent :: f Text,
   newsRawMainPhoto :: f Text,
-  newsRawIsDraft :: f Bool,
   newsRawTagsIds :: f [Integer]
 }
 
@@ -48,8 +47,5 @@ data TagNews = TagNews {
 }
 
 instance FromRow TagNews where
-  fromRow =
-    TagNews
-      <$> field
-      <*> field
+  fromRow = TagNews <$> field <*> field
 

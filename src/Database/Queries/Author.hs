@@ -25,7 +25,7 @@ getAuthorsList = bracket (connect connectInfo) close $ \conn ->
 
 addAuthorToDB :: (UserRaw, AuthorRaw) -> IO (User, Author)
 addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
-  bracket (connect connectInfo) close $ \conn -> do
+  bracket (connect connectInfo) close $ \conn -> withTransaction conn $ do
     (user : _) <- query conn
                         insertUserQuery
                         (userRawName, userRawSurname, userRawAvatar)
@@ -33,20 +33,19 @@ addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
                           insertAuthorQuery
                           (userId user, authorRawDescription)
     pure (user, author)
---execute conn insertUserQuery [userRawName, userRawSurname, userRawAvatar]
 
 updateAuthor :: Integer -> AuthorRaw -> IO Author
-updateAuthor authorId AuthorRaw {..} =
+updateAuthor userId AuthorRaw {..} =
   bracket (connect connectInfo) close $ \conn ->
-    head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
+    head <$> query conn updateAuthorQuery (authorRawDescription, userId)
 
 insertAuthorQuery :: Query
 insertAuthorQuery =
-  "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) RETURNING author_id, user_id, description"
+  "INSERT INTO authors(user_id, description) VALUES (?,?) RETURNING user_id, description"
 
 updateAuthorQuery :: Query
 updateAuthorQuery =
   "UPDATE authors SET \
     \description = ?\
-    \WHERE author_id = ? \
-    \ RETURNING author_id, user_id, description"
+    \WHERE user_id = ? \
+    \ RETURNING user_id, description"

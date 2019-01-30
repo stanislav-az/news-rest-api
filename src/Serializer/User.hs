@@ -8,34 +8,17 @@ import           Data.Time
 import           Database.Models.User
 import           Data.Functor.Identity
 
-data UserRequestT f = UserRequestT {
-  urName :: f T.Text,
-  urSurname :: f T.Text,
-  urAvatar :: f T.Text
-}
-
-newtype CreateUserRequest = CreateUserRequest (UserRequestT Identity)
+newtype CreateUserRequest = CreateUserRequest UserRaw
 
 instance FromJSON CreateUserRequest where
   parseJSON = withObject "CreateUserRequest" $ \v ->
-    fmap CreateUserRequest
-      $   UserRequestT
-      <$> (Identity <$> (v .: "name"))
-      <*> (Identity <$> (v .: "surname"))
-      <*> (Identity <$> (v .: "avatar"))
-
-newtype UpdateUserRequest = UpdateUserRequest (UserRequestT Maybe)
-
-instance FromJSON UpdateUserRequest where
-  parseJSON = withObject "UpdateUserRequest" $ \v ->
-    fmap UpdateUserRequest
-      $   UserRequestT
+    fmap CreateUserRequest $ UserRaw
       <$> v
-      .:? "name"
+      .:  "name"
       <*> v
-      .:? "surname"
+      .:  "surname"
       <*> v
-      .:? "avatar"
+      .:  "avatar"
 
 newtype CreateUserResponse = CreateUserResponse User
 
@@ -50,12 +33,7 @@ instance ToJSON CreateUserResponse where
     ]
 
 requestToUser :: CreateUserRequest -> UserRaw
-requestToUser (CreateUserRequest UserRequestT {..}) =
-  UserRaw (runIdentity urName) (runIdentity urSurname) (runIdentity urAvatar)
-
-requestToUpdateUser :: UpdateUserRequest -> UserRawPartial
-requestToUpdateUser (UpdateUserRequest UserRequestT {..}) =
-  UserRawPartial urName urSurname urAvatar
+requestToUser (CreateUserRequest user) = user
 
 userToResponse :: User -> CreateUserResponse
 userToResponse = CreateUserResponse

@@ -6,6 +6,7 @@ import           Network.Wai
 import           Network.HTTP.Types
 import           Handlers
 import           Middlewares
+import           Database.Queries.News
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
@@ -19,10 +20,6 @@ getAuthorsListRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "GET"
 
 createUserRoute :: Route
 createUserRoute = PathRoute "api" $ PathRoute "user" $ MethodRoute "POST"
-
-updateUserRoute :: Route
-updateUserRoute =
-  PathRoute "api" $ PathRoute "user" $ DynamicRoute "id" $ MethodRoute "PATCH"
 
 getUsersListRoute :: Route
 getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
@@ -50,25 +47,26 @@ getCategoriesListRoute :: Route
 getCategoriesListRoute =
   PathRoute "api" $ PathRoute "categories" $ MethodRoute "GET"
 
-createNewsRoute :: Route
-createNewsRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "POST"
+createNewsDraftRoute :: Route
+createNewsDraftRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "POST"
 
 updateNewsRoute :: Route
 updateNewsRoute =
   PathRoute "api" $ PathRoute "news" $ DynamicRoute "id" $ MethodRoute "PATCH"
+
+publishNewsRoute :: Route
+publishNewsRoute =
+  PathRoute "api" $ PathRoute "news" $ DynamicRoute "id" $ MethodRoute "POST"
 
 getNewsListRoute :: Route
 getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  [ (createAuthorRoute  , checkPermission Admin createAuthorHandler)
-  , (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
-  , (getAuthorsListRoute, checkPermission Admin getAuthorsListHandler)
-  , (createUserRoute    , createUserHandler)
-  , ( updateUserRoute
-    , updateUserHandler
-    ) -- No such handler in requirements
+  [ (createAuthorRoute     , checkPermission Admin createAuthorHandler)
+  , (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
+  , (getAuthorsListRoute   , checkPermission Admin getAuthorsListHandler)
+  , (createUserRoute       , createUserHandler)
   , (getUsersListRoute     , getUsersListHandler)
   , (createTagRoute        , checkPermission Admin createTagHandler)
   , (updateTagRoute        , checkPermission Admin updateTagHandler)
@@ -77,9 +75,11 @@ routes =
   , (updateCategoryRoute   , checkPermission Admin updateCategoryHandler)
   , (getCategoriesListRoute, getCategoriesListHandler)
   , (getNewsListRoute      , getNewsListHandler)
-  , ( createNewsRoute
-    , createNewsHandler
+  , ( createNewsDraftRoute
+    , createNewsDraftHandler
     ) -- Rename to create draft, Make publish
+  , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
+  , (publishNewsRoute, checkPermission (Owner isAuthorOfNews) publishNewsHandler)  
   , ( MethodRoute "GET"
     , \_ _ -> pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )

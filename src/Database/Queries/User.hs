@@ -26,23 +26,7 @@ addUserToDB UserRaw {..} = bracket (connect connectInfo) close $ \conn ->
                  insertUserQuery
                  (userRawName, userRawSurname, userRawAvatar)
 
-updateUser :: Integer -> UserRawPartial -> IO User
-updateUser userId user = bracket (connect connectInfo) close
-  $ \conn -> head <$> query conn (updateUserQuery user) (Only userId)
-
 insertUserQuery :: Query
 insertUserQuery =
   "INSERT INTO users(user_id, name, surname, avatar, date_created, is_admin) VALUES (default,?,?,?,CURRENT_TIMESTAMP,default) \
   \ RETURNING user_id, name, surname, avatar, date_created, is_admin"
-
-updateUserQuery :: UserRawPartial -> Query
-updateUserQuery UserRawPartial {..} =
-  let params = makeQueryParameters
-        [ ("name"   , userRawPartialName)
-        , ("surname", userRawPartialSurname)
-        , ("avatar" , userRawPartialAvatar)
-        ]
-  in  "UPDATE users SET "
-        <> params
-        <> "WHERE user_id = ? "
-        <> "RETURNING user_id, name, surname, avatar, date_created, is_admin"
