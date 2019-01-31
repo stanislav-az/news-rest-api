@@ -7,6 +7,7 @@ import qualified Data.Text                     as T
 import           Data.Time
 import           Database.Models.Author
 import           Database.Models.User
+import           Serializer.User
 import           Data.Functor.Identity
 
 data CreateAuthorRequest = CreateAuthorRequest {
@@ -62,6 +63,15 @@ newtype UpdateAuthorResponse = UpdateAuthorResponse Author
 instance ToJSON UpdateAuthorResponse where
   toJSON (UpdateAuthorResponse Author {..}) =
     object ["author_id" .= authorId, "user_id" .= authorUserId, "description" .= authorDescription]
+
+newtype AuthorNestedResponse = AuthorNestedResponse AuthorNested
+
+instance ToJSON AuthorNestedResponse where
+  toJSON (AuthorNestedResponse AuthorNested {..}) = object
+    [ "author_id" .= authorNestedId
+    , "user" .= toJSON (CreateUserResponse authorNestedUser)
+    , "description" .= authorNestedDescription
+    ]
 
 requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
 requestToAuthor CreateAuthorRequest {..} =

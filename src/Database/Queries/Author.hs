@@ -22,6 +22,22 @@ getAuthorsList conn =
     \INNER JOIN users AS u \
     \ON u.user_id = a.user_id"
 
+getAuthorNestedById :: Connection -> Integer -> IO AuthorNested
+getAuthorNestedById conn authorId = do
+  (Author {..} : _) <- query conn getAuthorQuery (Only authorId)
+  (user        : _) <- query conn getUserQuery (Only authorUserId)
+  pure $ AuthorNested { authorNestedId          = authorId
+                      , authorNestedUser        = user
+                      , authorNestedDescription = authorDescription
+                      }
+ where
+  getAuthorQuery
+    = "SELECT author_id, user_id, description FROM authors \
+      \WHERE author_id = ?"
+  getUserQuery
+    = "SELECT user_id, name, surname, avatar, date_created, is_admin FROM users \
+      \WHERE user_id = ?"
+
 addAuthorToDB :: Connection -> (UserRaw, AuthorRaw) -> IO (User, Author)
 addAuthorToDB conn (UserRaw {..}, AuthorRaw {..}) = withTransaction conn $ do
   (user : _) <- query conn

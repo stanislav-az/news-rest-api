@@ -13,6 +13,11 @@ getCategoriesList :: Connection -> IO [CategoryNested]
 getCategoriesList conn =
   getList conn "categories" >>= (mapM (nestCategory conn))
 
+getCategoryById :: Connection -> Integer -> IO CategoryNested
+getCategoryById conn categoryId =
+  (head <$> query conn selectQueryByIdQuery (Only categoryId))
+    >>= (nestCategory conn)
+
 addCategoryToDB :: Connection -> CategoryRaw -> IO CategoryNested
 addCategoryToDB conn cr =
   (head <$> query_ conn (insertCategoryQuery cr)) >>= (nestCategory conn)
@@ -26,14 +31,14 @@ updateCategory conn categoryId category =
 nestCategory :: Connection -> Category -> IO CategoryNested
 nestCategory conn (Category id name Nothing        ) = pure $ Parent id name
 nestCategory conn (Category id name (Just parentId)) = do
-  (parent : _) <- query conn selectParentQuery (Only parentId)
+  (parent : _) <- query conn selectQueryByIdQuery (Only parentId)
   parentNested <- nestCategory conn parent
   pure $ CategoryNested id name parentNested
- where
-  selectParentQuery
-    = "SELECT category_id, name, parent_id FROM categories \
-      \WHERE category_id = ?"
 
+selectQueryByIdQuery :: Query
+selectQueryByIdQuery =
+  "SELECT category_id, name, parent_id FROM categories \
+  \WHERE category_id = ?"
 
 insertCategoryQuery :: CategoryRaw -> Query
 insertCategoryQuery CategoryRaw {..} =

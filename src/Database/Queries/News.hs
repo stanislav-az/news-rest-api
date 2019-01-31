@@ -5,6 +5,9 @@ module Database.Queries.News where
 import           Database.PostgreSQL.Simple
 import           Database.Models.News
 import           Database.Models.User
+import           Database.Queries.Category
+import           Database.Queries.Tag
+import           Database.Queries.Author
 import           Database.Connection
 import           Database.Queries.Queries
 import qualified Data.Text                     as T
@@ -12,10 +15,26 @@ import           Data.Functor.Identity
 import           Control.Monad
 import           Helpers
 
-getNewsList :: Connection -> IO [News]
-getNewsList conn = getList conn "news"
+getNewsList :: Connection -> IO [NewsNested]
+getNewsList conn = getList conn "news" >>= (mapM (nestNews conn))
 
-addNewsToDB :: Connection -> NewsRaw -> IO News
+nestNews :: Connection -> News -> IO NewsNested
+nestNews conn News {..} = do
+  category <- getCategoryById conn newsCategoryId
+  author   <- getAuthorNestedById conn newsAuthorId
+  tags     <- getTagsByNewsId conn newsId
+  pure $ NewsNested { newsNestedId          = newsId
+                    , newsNestedTitle       = newsTitle
+                    , newsNestedDateCreated = newsDateCreated
+                    , newsNestedContent     = newsContent
+                    , newsNestedMainPhoto   = newsMainPhoto
+                    , newsNestedIsDraft     = newsIsDraft
+                    , newsNestedAuthor      = author
+                    , newsNestedCategory    = category
+                    , newsNestedTags        = tags
+                    }
+
+addNewsToDB :: Connection -> NewsRaw -> IO NewsNested
 addNewsToDB conn (NewsRaw NewsRawT {..}) = withTransaction conn $ do
   (news : _) <- query
     conn
@@ -29,10 +48,11 @@ addNewsToDB conn (NewsRaw NewsRawT {..}) = withTransaction conn $ do
   let thisNewsId = newsId news
       tagIds     = runIdentity newsRawTagsIds
   forM_ tagIds $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
-  pure news
+  nestNews conn news
 
-publishNews :: Connection -> Integer -> IO News
-publishNews conn newsId = head <$> query conn publishNewsQuery (Only newsId)
+publishNews :: Connection -> Integer -> IO NewsNested
+publishNews conn newsId = (head <$> query conn publishNewsQuery (Only newsId)) 
+  >>= (nestNews conn)
 
 publishNewsQuery :: Query
 publishNewsQuery =
@@ -40,7 +60,7 @@ publishNewsQuery =
   \WHERE news_id = ? \
   \RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
-updateNews :: Connection -> Integer -> NewsRawPartial -> IO News
+updateNews :: Connection -> Integer -> NewsRawPartial -> IO NewsNested
 updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
   withTransaction conn $ do
     (news : _) <- query conn (updateNewsQuery newsPartial) (Only updatingNewsId)
@@ -52,7 +72,7 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
           execute conn deleteTagsNewsQuery (Only updatingNewsId)
         makeNewTagConnections = forM_ tagIds
           $ \tagId -> execute conn insertTagsNewsQuery (tagId, updatingNewsId)
-    pure news
+    nestNews conn news    
 
 insertNewsQuery :: Query
 insertNewsQuery =
@@ -84,13 +104,13 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
 
 isAuthorOfNews :: Connection -> User -> Integer -> IO Bool
 isAuthorOfNews conn user newsId = do
-  userFromNews <- getAuthorUseByNewsId conn newsId
+  userFromNews <- getAuthorUserByNewsId conn newsId
   let userIdFromUser = userId user
       userIdFromNews = userId userFromNews
   pure $ userIdFromUser == userIdFromNews
 
-getAuthorUseByNewsId :: Connection -> Integer -> IO User
-getAuthorUseByNewsId conn newsId = head <$> query conn q (Only newsId)
+getAuthorUserByNewsId :: Connection -> Integer -> IO User
+getAuthorUserByNewsId conn newsId = head <$> query conn q (Only newsId)
  where
   q
     = "SELECT u.user_id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \

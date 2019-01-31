@@ -6,6 +6,9 @@ import           Data.Aeson
 import qualified Data.Text                     as T
 import           Data.Time
 import           Database.Models.News
+import           Serializer.Author
+import           Serializer.Category
+import           Serializer.Tag
 import           Data.Functor.Identity
 
 newtype CreateNewsRequest = CreateNewsRequest (NewsRawT Identity)
@@ -40,18 +43,19 @@ instance FromJSON UpdateNewsRequest where
       <*> v
       .:? "tags"
 
-newtype CreateNewsResponse = CreateNewsResponse News
+newtype CreateNewsResponse = CreateNewsResponse NewsNested
 
 instance ToJSON CreateNewsResponse where
-  toJSON (CreateNewsResponse News {..}) = object
-    [ "news_id" .= newsId
-    , "title" .= newsTitle
-    , "date_created" .= newsDateCreated
-    , "author_id" .= newsAuthorId
-    , "category_id" .= newsCategoryId
-    , "content" .= newsContent
-    , "main_photo" .= newsMainPhoto
-    , "is_draft" .= newsIsDraft
+  toJSON (CreateNewsResponse NewsNested {..}) = object
+    [ "news_id" .= newsNestedId
+    , "title" .= newsNestedTitle
+    , "date_created" .= newsNestedDateCreated
+    , "content" .= newsNestedContent
+    , "main_photo" .= newsNestedMainPhoto
+    , "is_draft" .= newsNestedIsDraft
+    , "author" .= toJSON (AuthorNestedResponse newsNestedAuthor)
+    , "category" .= toJSON (CreateCategoryResponse newsNestedCategory)
+    , "tags" .= toJSON (CreateTagResponse <$> newsNestedTags)
     ]
 
 requestToNews :: CreateNewsRequest -> NewsRaw
@@ -60,5 +64,5 @@ requestToNews (CreateNewsRequest nrt) = NewsRaw nrt
 requestToUpdateNews :: UpdateNewsRequest -> NewsRawPartial
 requestToUpdateNews (UpdateNewsRequest nrt) = NewsRawPartial nrt
 
-newsToResponse :: News -> CreateNewsResponse
+newsToResponse :: NewsNested -> CreateNewsResponse
 newsToResponse = CreateNewsResponse
