@@ -35,15 +35,15 @@ updateAuthorHandler dpMap req = do
   body <- requestBody req
   let updateAuthorData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
-      userId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
 
-  either (pure . reportParseError) (goUpdateAuthor userId) updateAuthorData
+  either (pure . reportParseError) (goUpdateAuthor authorId) updateAuthorData
  where
   goUpdateAuthor :: Integer -> UpdateAuthorRequest -> IO Response
-  goUpdateAuthor userId authorData = do
+  goUpdateAuthor authorId authorData = do
     let partial = requestToUpdateAuthor authorData
-    author <- updateAuthor userId partial
+    author <- updateAuthor authorId partial
     let authorJSON = encode $ authorToUpdateResponse author
     pure $ responseLBS status200
                        [("Content-Type", "application/json")]

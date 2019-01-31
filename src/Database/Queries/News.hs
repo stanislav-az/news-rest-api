@@ -23,7 +23,7 @@ addNewsToDB (NewsRaw NewsRawT {..}) =
       conn
       insertNewsQuery
       ( runIdentity newsRawTitle
-      , runIdentity newsRawUserId
+      , runIdentity newsRawAuthorId
       , runIdentity newsRawCategoryId
       , runIdentity newsRawContent
       , runIdentity newsRawMainPhoto
@@ -42,7 +42,7 @@ publishNewsQuery :: Query
 publishNewsQuery =
   "UPDATE news SET is_draft = false \
   \WHERE news_id = ? \
-  \RETURNING news_id, title, date_created, user_id, category_id, content, main_photo, is_draft"
+  \RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 updateNews :: Integer -> NewsRawPartial -> IO News
 updateNews updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
@@ -60,9 +60,9 @@ updateNews updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
 
 insertNewsQuery :: Query
 insertNewsQuery =
-  "INSERT INTO news(news_id, title, date_created, user_id, category_id, content, main_photo, is_draft) \
+  "INSERT INTO news(news_id, title, date_created, author_id, category_id, content, main_photo, is_draft) \
   \ VALUES (default,?,default,?,?,?,?,default) \
-  \ RETURNING news_id, title, date_created, user_id, category_id, content, main_photo, is_draft"
+  \ RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 insertTagsNewsQuery :: Query
 insertTagsNewsQuery =
@@ -84,16 +84,22 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
     "UPDATE news SET "
     <> params
     <> "WHERE news_id = ? "
-    <> "RETURNING news_id, title, date_created, user_id, category_id, content, main_photo, is_draft"
+    <> "RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 isAuthorOfNews :: User -> Integer -> IO Bool
 isAuthorOfNews user newsId = do
-  news <- getNewsById newsId
-  let uid1 = newsUserId news
-      uid2 = userId user
-  pure $ uid1 == uid2
+  userFromNews <- getAuthorUseByNewsId newsId
+  let userIdFromUser = userId user
+      userIdFromNews = userId userFromNews
+  pure $ userIdFromUser == userIdFromNews
 
-getNewsById :: Integer -> IO News
-getNewsById newsId = bracket (connect connectInfo) close
+getAuthorUseByNewsId :: Integer -> IO User
+getAuthorUseByNewsId newsId = bracket (connect connectInfo) close
   $ \conn -> head <$> query conn q (Only newsId)
-  where q = "SELECT * FROM news WHERE news_id = ?"
+ where
+  q
+    = "SELECT u.user_id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
+  \JOIN authors a ON a.user_id = u.user_id \
+  \JOIN news n ON n.author_id = a.author_id \
+  \WHERE news_id = ?"
+

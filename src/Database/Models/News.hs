@@ -9,7 +9,7 @@ data News = News {
   newsId :: Integer,
   newsTitle :: Text,
   newsDateCreated :: LocalTime,
-  newsUserId :: Integer,
+  newsAuthorId :: Integer,
   newsCategoryId :: Integer,
   newsContent :: Text,
   newsMainPhoto :: Text,
@@ -30,7 +30,7 @@ instance FromRow News where
 
 data NewsRawT f = NewsRawT {
   newsRawTitle :: f Text,
-  newsRawUserId :: f Integer,
+  newsRawAuthorId :: f Integer,
   newsRawCategoryId :: f Integer,
   newsRawContent :: f Text,
   newsRawMainPhoto :: f Text,

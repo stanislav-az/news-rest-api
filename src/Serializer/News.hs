@@ -15,7 +15,7 @@ instance FromJSON CreateNewsRequest where
     fmap CreateNewsRequest
       $   NewsRawT
       <$> (Identity <$> (v .: "title"))
-      <*> (Identity <$> (v .: "user_id"))
+      <*> (Identity <$> (v .: "author_id"))
       <*> (Identity <$> (v .: "category_id"))
       <*> (Identity <$> (v .: "content"))
       <*> (Identity <$> (v .: "main_photo"))
@@ -30,7 +30,7 @@ instance FromJSON UpdateNewsRequest where
       <$> v
       .:? "title"
       <*> v
-      .:? "user_id"
+      .:? "author_id"
       <*> v
       .:? "category_id"
       <*> v
@@ -47,7 +47,7 @@ instance ToJSON CreateNewsResponse where
     [ "news_id" .= newsId
     , "title" .= newsTitle
     , "date_created" .= newsDateCreated
-    , "user_id" .= newsUserId
+    , "author_id" .= newsAuthorId
     , "category_id" .= newsCategoryId
     , "content" .= newsContent
     , "main_photo" .= newsMainPhoto

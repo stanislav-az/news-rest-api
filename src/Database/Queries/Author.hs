@@ -35,17 +35,18 @@ addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
     pure (user, author)
 
 updateAuthor :: Integer -> AuthorRaw -> IO Author
-updateAuthor userId AuthorRaw {..} =
+updateAuthor authorId AuthorRaw {..} =
   bracket (connect connectInfo) close $ \conn ->
-    head <$> query conn updateAuthorQuery (authorRawDescription, userId)
+    head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
 
 insertAuthorQuery :: Query
 insertAuthorQuery =
-  "INSERT INTO authors(user_id, description) VALUES (?,?) RETURNING user_id, description"
+  "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) \
+  \RETURNING author_id, user_id, description"
 
 updateAuthorQuery :: Query
 updateAuthorQuery =
   "UPDATE authors SET \
     \description = ?\
-    \WHERE user_id = ? \
-    \ RETURNING user_id, description"
+    \WHERE author_id = ? \
+    \ RETURNING author_id, user_id, description"
