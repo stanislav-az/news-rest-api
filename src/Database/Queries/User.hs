@@ -6,25 +6,24 @@ import           Database.PostgreSQL.Simple
 import           Database.Models.User
 import           Database.Connection
 import           Database.Queries.Queries
-import           Control.Exception              ( bracket )
 import qualified Data.Text                     as T
 
-getUsersList :: IO [User]
-getUsersList = getList "users"
+getUsersList :: Connection -> IO [User]
+getUsersList conn = getList conn "users"
 
-getUserById :: Integer -> IO (Maybe User)
-getUserById userId = bracket (connect connectInfo) close $ \conn -> do
-  user <- query conn q [userId]
-  case user of
-    []         -> pure Nothing
-    (user : _) -> pure (Just user)
-  where q = "SELECT * FROM users WHERE user_id=?"
+getUserById :: Connection -> Integer -> IO (Maybe User)
+getUserById conn userId = do
+    user <- query conn q [userId]
+    case user of
+      []         -> pure Nothing
+      (user : _) -> pure (Just user)
+    where
+      q = "SELECT * FROM users WHERE user_id=?"
 
-addUserToDB :: UserRaw -> IO User
-addUserToDB UserRaw {..} = bracket (connect connectInfo) close $ \conn ->
-  head <$> query conn
-                 insertUserQuery
-                 (userRawName, userRawSurname, userRawAvatar)
+addUserToDB :: Connection -> UserRaw -> IO User
+addUserToDB conn UserRaw {..} = head <$> query conn
+                        insertUserQuery
+                        (userRawName, userRawSurname, userRawAvatar)
 
 insertUserQuery :: Query
 insertUserQuery =

@@ -7,6 +7,7 @@ import           Network.HTTP.Types
 import           Handlers
 import           Middlewares
 import           Database.Queries.News
+import           WebServer.MonadHandler
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
@@ -75,12 +76,12 @@ routes =
   , (updateCategoryRoute   , checkPermission Admin updateCategoryHandler)
   , (getCategoriesListRoute, getCategoriesListHandler)
   , (getNewsListRoute      , getNewsListHandler)
-  , ( createNewsDraftRoute
-    , createNewsDraftHandler
-    ) -- Rename to create draft, Make publish
+  , (createNewsDraftRoute  , createNewsDraftHandler)
   , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
-  , (publishNewsRoute, checkPermission (Owner isAuthorOfNews) publishNewsHandler)  
+  , ( publishNewsRoute
+    , checkPermission (Owner isAuthorOfNews) publishNewsHandler
+    )
   , ( MethodRoute "GET"
-    , \_ _ -> pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
+    , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )
   ]

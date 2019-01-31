@@ -4,12 +4,14 @@ import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.Migration
 import           System.Directory               ( createDirectoryIfMissing )
 import           Control.Exception              ( bracket )
-import           Database.Connection
+import qualified Database.Connection           as DC
+import qualified Config                        as C
 
 initializeDB :: IO ()
 initializeDB = do
+  conf <- C.loadConfig
   createDirectoryIfMissing False "./DBMigrations"
-  bracket (connect connectInfo) close migrate
+  bracket (DC.connect conf) close migrate
 
 migrate :: Connection -> IO ()
 migrate conn = do

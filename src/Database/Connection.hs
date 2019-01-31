@@ -1,11 +1,22 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Database.Connection where
 
-import           Database.PostgreSQL.Simple
+import qualified Database.PostgreSQL.Simple    as PSQL
+import qualified Config                        as C
 
-connectInfo :: ConnectInfo
-connectInfo = ConnectInfo { connectHost     = "" --omitting the host parameter will cause libpq to attempt to connect via unix domain sockets 
-                          , connectPort     = 5432
-                          , connectUser     = "stanislav"
-                          , connectPassword = "" --connecting via unix sockets tends to use the peer authentication method, which is very secure and does not require a password
-                          , connectDatabase = "tesths"
+connectInfo :: C.Config -> IO PSQL.ConnectInfo
+connectInfo conf = do
+  host     <- C.get conf "database.host"
+  port     <- C.get conf "database.port"
+  user     <- C.get conf "database.user"
+  password <- C.get conf "database.password"
+  database <- C.get conf "database.database"
+  pure $ PSQL.ConnectInfo { PSQL.connectHost     = host
+                          , PSQL.connectPort     = port
+                          , PSQL.connectUser     = user
+                          , PSQL.connectPassword = password
+                          , PSQL.connectDatabase = database
                           }
+
+connect :: C.Config -> IO PSQL.Connection
+connect conf = connectInfo conf >>= PSQL.connect

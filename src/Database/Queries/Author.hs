@@ -5,7 +5,6 @@ module Database.Queries.Author where
 
 import           Database.Models.Author
 import           Database.Models.User
-import           Control.Exception              ( bracket )
 import           Database.PostgreSQL.Simple.Types
 import           Database.PostgreSQL.Simple
 import           Database.Connection
@@ -13,8 +12,8 @@ import           Database.Queries.Queries
 import           Database.Queries.User
 import qualified Data.Text                     as T
 
-getAuthorsList :: IO [(User, Author)]
-getAuthorsList = bracket (connect connectInfo) close $ \conn ->
+getAuthorsList :: Connection -> IO [(User, Author)]
+getAuthorsList conn =
   fmap inductiveTupleToTuple
     <$> (query_ conn authorsQuery :: IO [User :. Author])
  where
@@ -23,21 +22,19 @@ getAuthorsList = bracket (connect connectInfo) close $ \conn ->
     \INNER JOIN users AS u \
     \ON u.user_id = a.user_id"
 
-addAuthorToDB :: (UserRaw, AuthorRaw) -> IO (User, Author)
-addAuthorToDB (UserRaw {..}, AuthorRaw {..}) =
-  bracket (connect connectInfo) close $ \conn -> withTransaction conn $ do
-    (user : _) <- query conn
-                        insertUserQuery
-                        (userRawName, userRawSurname, userRawAvatar)
-    (author : _) <- query conn
-                          insertAuthorQuery
-                          (userId user, authorRawDescription)
-    pure (user, author)
+addAuthorToDB :: Connection -> (UserRaw, AuthorRaw) -> IO (User, Author)
+addAuthorToDB conn (UserRaw {..}, AuthorRaw {..}) = withTransaction conn $ do
+  (user : _) <- query conn
+                      insertUserQuery
+                      (userRawName, userRawSurname, userRawAvatar)
+  (author : _) <- query conn
+                        insertAuthorQuery
+                        (userId user, authorRawDescription)
+  pure (user, author)
 
-updateAuthor :: Integer -> AuthorRaw -> IO Author
-updateAuthor authorId AuthorRaw {..} =
-  bracket (connect connectInfo) close $ \conn ->
-    head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
+updateAuthor :: Connection -> Integer -> AuthorRaw -> IO Author
+updateAuthor conn authorId AuthorRaw {..} =
+  head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
 
 insertAuthorQuery :: Query
 insertAuthorQuery =

@@ -6,19 +6,18 @@ import           Database.PostgreSQL.Simple
 import           Database.Models.Tag
 import           Database.Connection
 import           Database.Queries.Queries
-import           Control.Exception              ( bracket )
 import qualified Data.Text                     as T
 
-getTagsList :: IO [Tag]
-getTagsList = getList "tags"
+getTagsList :: Connection -> IO [Tag]
+getTagsList conn = getList conn "tags"
 
-addTagToDB :: TagRaw -> IO Tag
-addTagToDB TagRaw {..} = bracket (connect connectInfo) close
-  $ \conn -> head <$> query conn insertTagQuery (Only tagRawName)
+addTagToDB :: Connection -> TagRaw -> IO Tag
+addTagToDB conn TagRaw {..} =
+  head <$> query conn insertTagQuery (Only tagRawName)
 
-updateTag :: Integer -> TagRaw -> IO Tag
-updateTag tagId TagRaw {..} = bracket (connect connectInfo) close
-  $ \conn -> head <$> query conn updateTagQuery (tagRawName, tagId)
+updateTag :: Connection -> Integer -> TagRaw -> IO Tag
+updateTag conn tagId TagRaw {..} =
+  head <$> query conn updateTagQuery (tagRawName, tagId)
 
 insertTagQuery :: Query
 insertTagQuery =

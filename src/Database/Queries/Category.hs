@@ -6,33 +6,28 @@ import           Database.PostgreSQL.Simple
 import           Database.Models.Category
 import           Database.Connection
 import           Database.Queries.Queries
-import           Control.Exception              ( bracket )
 import qualified Data.Text                     as T
 import           Data.String
 
-getCategoriesList :: IO [CategoryNested]
-getCategoriesList = getList "categories" >>= (mapM nestCategory)
+getCategoriesList :: Connection -> IO [CategoryNested]
+getCategoriesList conn =
+  getList conn "categories" >>= (mapM (nestCategory conn))
 
-addCategoryToDB :: CategoryRaw -> IO CategoryNested
-addCategoryToDB cr =
-  ( bracket (connect connectInfo) close
-    $ \conn -> head <$> query_ conn (insertCategoryQuery cr)
-    )
-    >>= nestCategory
+addCategoryToDB :: Connection -> CategoryRaw -> IO CategoryNested
+addCategoryToDB conn cr =
+  (head <$> query_ conn (insertCategoryQuery cr)) >>= (nestCategory conn)
 
-updateCategory :: Integer -> CategoryRawPartial -> IO CategoryNested
-updateCategory categoryId category =
-  (bracket (connect connectInfo) close $ \conn ->
-      head <$> query conn (updateCategoryQuery category) (Only categoryId)
-    )
-    >>= nestCategory
+updateCategory
+  :: Connection -> Integer -> CategoryRawPartial -> IO CategoryNested
+updateCategory conn categoryId category =
+  (head <$> query conn (updateCategoryQuery category) (Only categoryId))
+    >>= (nestCategory conn)
 
-nestCategory :: Category -> IO CategoryNested
-nestCategory (Category id name Nothing        ) = pure $ Parent id name
-nestCategory (Category id name (Just parentId)) = do
-  (parent : _) <- bracket (connect connectInfo) close
-    $ \conn -> query conn selectParentQuery (Only parentId)
-  parentNested <- nestCategory parent
+nestCategory :: Connection -> Category -> IO CategoryNested
+nestCategory conn (Category id name Nothing        ) = pure $ Parent id name
+nestCategory conn (Category id name (Just parentId)) = do
+  (parent : _) <- query conn selectParentQuery (Only parentId)
+  parentNested <- nestCategory conn parent
   pure $ CategoryNested id name parentNested
  where
   selectParentQuery

@@ -7,36 +7,32 @@ import           Database.Models.News
 import           Database.Models.User
 import           Database.Connection
 import           Database.Queries.Queries
-import           Control.Exception              ( bracket )
 import qualified Data.Text                     as T
 import           Data.Functor.Identity
 import           Control.Monad
 import           Helpers
 
-getNewsList :: IO [News]
-getNewsList = getList "news"
+getNewsList :: Connection -> IO [News]
+getNewsList conn = getList conn "news"
 
-addNewsToDB :: NewsRaw -> IO News
-addNewsToDB (NewsRaw NewsRawT {..}) =
-  bracket (connect connectInfo) close $ \conn -> withTransaction conn $ do
-    (news : _) <- query
-      conn
-      insertNewsQuery
-      ( runIdentity newsRawTitle
-      , runIdentity newsRawAuthorId
-      , runIdentity newsRawCategoryId
-      , runIdentity newsRawContent
-      , runIdentity newsRawMainPhoto
-      )
-    let thisNewsId = newsId news
-        tagIds     = runIdentity newsRawTagsIds
-    forM_ tagIds
-      $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
-    pure news
+addNewsToDB :: Connection -> NewsRaw -> IO News
+addNewsToDB conn (NewsRaw NewsRawT {..}) = withTransaction conn $ do
+  (news : _) <- query
+    conn
+    insertNewsQuery
+    ( runIdentity newsRawTitle
+    , runIdentity newsRawAuthorId
+    , runIdentity newsRawCategoryId
+    , runIdentity newsRawContent
+    , runIdentity newsRawMainPhoto
+    )
+  let thisNewsId = newsId news
+      tagIds     = runIdentity newsRawTagsIds
+  forM_ tagIds $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
+  pure news
 
-publishNews :: Integer -> IO News
-publishNews newsId = bracket (connect connectInfo) close
-  $ \conn -> head <$> query conn publishNewsQuery (Only newsId)
+publishNews :: Connection -> Integer -> IO News
+publishNews conn newsId = head <$> query conn publishNewsQuery (Only newsId)
 
 publishNewsQuery :: Query
 publishNewsQuery =
@@ -44,9 +40,9 @@ publishNewsQuery =
   \WHERE news_id = ? \
   \RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
-updateNews :: Integer -> NewsRawPartial -> IO News
-updateNews updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
-  bracket (connect connectInfo) close $ \conn -> withTransaction conn $ do
+updateNews :: Connection -> Integer -> NewsRawPartial -> IO News
+updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
+  withTransaction conn $ do
     (news : _) <- query conn (updateNewsQuery newsPartial) (Only updatingNewsId)
     case newsRawTagsIds of
       Nothing     -> pure ()
@@ -86,16 +82,15 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
     <> "WHERE news_id = ? "
     <> "RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
-isAuthorOfNews :: User -> Integer -> IO Bool
-isAuthorOfNews user newsId = do
-  userFromNews <- getAuthorUseByNewsId newsId
+isAuthorOfNews :: Connection -> User -> Integer -> IO Bool
+isAuthorOfNews conn user newsId = do
+  userFromNews <- getAuthorUseByNewsId conn newsId
   let userIdFromUser = userId user
       userIdFromNews = userId userFromNews
   pure $ userIdFromUser == userIdFromNews
 
-getAuthorUseByNewsId :: Integer -> IO User
-getAuthorUseByNewsId newsId = bracket (connect connectInfo) close
-  $ \conn -> head <$> query conn q (Only newsId)
+getAuthorUseByNewsId :: Connection -> Integer -> IO User
+getAuthorUseByNewsId conn newsId = head <$> query conn q (Only newsId)
  where
   q
     = "SELECT u.user_id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
