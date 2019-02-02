@@ -15,10 +15,10 @@ getTagsByNewsId :: Connection -> Integer -> IO [Tag]
 getTagsByNewsId conn newsId = query conn q (Only newsId)
  where
   q
-    = "SELECT t.tag_id, t.name FROM tags t \
-      \JOIN tags_news tn ON t.tag_id = tn.tag_id \
-      \JOIN news n ON tn.news_id = n.news_id \
-      \WHERE n.news_id = ?"
+    = "SELECT t.id, t.name FROM tags t \
+      \JOIN tags_news tn ON t.id = tn.tag_id \
+      \JOIN news n ON tn.news_id = n.id \
+      \WHERE n.id = ?"
 
 addTagToDB :: Connection -> TagRaw -> IO Tag
 addTagToDB conn TagRaw {..} =
@@ -30,12 +30,12 @@ updateTag conn tagId TagRaw {..} =
 
 insertTagQuery :: Query
 insertTagQuery =
-  "INSERT INTO tags(tag_id, name) VALUES (default,?) \
-  \ RETURNING tag_id, name"
+  "INSERT INTO tags(id, name) VALUES (default,?) \
+  \ RETURNING id, name"
 
 updateTagQuery :: Query
 updateTagQuery =
   "UPDATE tags SET \
     \name = ?\
-    \WHERE tag_id = ? \
-    \ RETURNING tag_id, name"
+    \WHERE id = ? \
+    \ RETURNING id, name"

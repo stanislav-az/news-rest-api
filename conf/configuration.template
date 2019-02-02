@@ -6,3 +6,8 @@ database
     password = ""
     database = ""
 }
+
+pagination
+{
+    max_limit = 15
+}

@@ -51,14 +51,14 @@ addNewsToDB conn (NewsRaw NewsRawT {..}) = withTransaction conn $ do
   nestNews conn news
 
 publishNews :: Connection -> Integer -> IO NewsNested
-publishNews conn newsId = (head <$> query conn publishNewsQuery (Only newsId)) 
-  >>= (nestNews conn)
+publishNews conn newsId =
+  (head <$> query conn publishNewsQuery (Only newsId)) >>= (nestNews conn)
 
 publishNewsQuery :: Query
 publishNewsQuery =
   "UPDATE news SET is_draft = false \
-  \WHERE news_id = ? \
-  \RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
+  \WHERE id = ? \
+  \RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 updateNews :: Connection -> Integer -> NewsRawPartial -> IO NewsNested
 updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
@@ -72,13 +72,13 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
           execute conn deleteTagsNewsQuery (Only updatingNewsId)
         makeNewTagConnections = forM_ tagIds
           $ \tagId -> execute conn insertTagsNewsQuery (tagId, updatingNewsId)
-    nestNews conn news    
+    nestNews conn news
 
 insertNewsQuery :: Query
 insertNewsQuery =
-  "INSERT INTO news(news_id, title, date_created, author_id, category_id, content, main_photo, is_draft) \
+  "INSERT INTO news(id, title, date_created, author_id, category_id, content, main_photo, is_draft) \
   \ VALUES (default,?,default,?,?,?,?,default) \
-  \ RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
+  \ RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 insertTagsNewsQuery :: Query
 insertTagsNewsQuery =
@@ -99,8 +99,8 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
   in
     "UPDATE news SET "
     <> params
-    <> "WHERE news_id = ? "
-    <> "RETURNING news_id, title, date_created, author_id, category_id, content, main_photo, is_draft"
+    <> "WHERE id = ? "
+    <> "RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
 isAuthorOfNews :: Connection -> User -> Integer -> IO Bool
 isAuthorOfNews conn user newsId = do
@@ -113,8 +113,8 @@ getAuthorUserByNewsId :: Connection -> Integer -> IO User
 getAuthorUserByNewsId conn newsId = head <$> query conn q (Only newsId)
  where
   q
-    = "SELECT u.user_id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
-  \JOIN authors a ON a.user_id = u.user_id \
-  \JOIN news n ON n.author_id = a.author_id \
-  \WHERE news_id = ?"
+    = "SELECT u.id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
+  \JOIN authors a ON a.user_id = u.id \
+  \JOIN news n ON n.author_id = a.id \
+  \WHERE n.id = ?"
 

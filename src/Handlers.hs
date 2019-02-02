@@ -19,8 +19,12 @@ import           Database.Queries.User
 import           Database.Queries.Tag
 import           Database.Queries.Category
 import           Database.Queries.News
+import           Database.Models.User
 import           Helpers
 import           WebServer.MonadHandler
+import           WebServer.Pagination
+import           WebServer.Database
+import qualified Config                        as C
 import           Control.Monad.Reader
 import           Data.Maybe                     ( fromMaybe )
 
@@ -103,8 +107,12 @@ reportParseError err = responseLBS HTTP.status400
 
 getUsersListHandler :: Handler
 getUsersListHandler = do
-  conn <- asks hConnection
-  usersDB <- liftIO $ getUsersList conn
+  conn     <- asks hConnection
+  conf     <- asks hConfig
+  req      <- asks hRequest
+  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  let pagination = getLimitOffset maxLimit req
+  usersDB <- liftIO $ select conn pagination
   let users          = userToResponse <$> usersDB
       printableUsers = encode users
   pure $ responseLBS HTTP.status200
@@ -131,7 +139,7 @@ createTagHandler = do
 
 getTagsListHandler :: Handler
 getTagsListHandler = do
-  conn <- asks hConnection
+  conn   <- asks hConnection
   tagsDB <- liftIO $ getTagsList conn
   let tags          = tagToResponse <$> tagsDB
       printableTags = encode tags
@@ -141,15 +149,16 @@ getTagsListHandler = do
 
 updateTagHandler :: Handler
 updateTagHandler = do
-  req  <- asks hRequest
+  req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
-  body <- liftIO $ requestBody req
+  body  <- liftIO $ requestBody req
   let updateTagData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateTagRequest
       tagId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (goUpdateTag conn tagId) updateTagData
+  liftIO
+    $ either (pure . reportParseError) (goUpdateTag conn tagId) updateTagData
  where
   goUpdateTag :: PSQL.Connection -> Integer -> UpdateTagRequest -> IO Response
   goUpdateTag conn tagId tagData = do
@@ -164,13 +173,15 @@ updateTagHandler = do
 
 createCategoryHandler :: Handler
 createCategoryHandler = do
-  req  <- asks hRequest
+  req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
-  body <- liftIO $ requestBody req
+  body  <- liftIO $ requestBody req
   let createCategoryData =
         eitherDecode $ LB.fromStrict body :: Either String CreateCategoryRequest
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (createCategory conn) createCategoryData
+  liftIO $ either (pure . reportParseError)
+                  (createCategory conn)
+                  createCategoryData
  where
   createCategory conn categoryData = do
     category <- addCategoryToDB conn $ requestToCategory categoryData
@@ -181,7 +192,7 @@ createCategoryHandler = do
 
 getCategoriesListHandler :: Handler
 getCategoriesListHandler = do
-  conn <- asks hConnection
+  conn         <- asks hConnection
   categoriesDB <- liftIO $ getCategoriesList conn
   let categories          = categoryNestedToResponse <$> categoriesDB
       printableCategories = encode categories
@@ -191,9 +202,9 @@ getCategoriesListHandler = do
 
 updateCategoryHandler :: Handler
 updateCategoryHandler = do
-  req  <- asks hRequest
+  req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
-  body <- liftIO $ requestBody req
+  body  <- liftIO $ requestBody req
   let
     updateCategoryData =
       eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
@@ -201,8 +212,8 @@ updateCategoryHandler = do
       $ getIdFromUrl dpMap
   conn <- asks hConnection
   liftIO $ either (pure . reportParseError)
-         (goUpdateCategory conn categoryId)
-         updateCategoryData
+                  (goUpdateCategory conn categoryId)
+                  updateCategoryData
  where
   goUpdateCategory conn categoryId categoryData = do
     let partial = requestToUpdateCategory categoryData
@@ -221,7 +232,9 @@ createNewsDraftHandler = do
   let createNewsDraftData =
         eitherDecode $ LB.fromStrict body :: Either String CreateNewsRequest
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (createNewsDraft conn) createNewsDraftData
+  liftIO $ either (pure . reportParseError)
+                  (createNewsDraft conn)
+                  createNewsDraftData
  where
   createNewsDraft conn newsData = do
     news <- addNewsToDB conn $ requestToNews newsData
@@ -232,7 +245,7 @@ createNewsDraftHandler = do
 
 getNewsListHandler :: Handler
 getNewsListHandler = do
-  conn <- asks hConnection
+  conn   <- asks hConnection
   newsDB <- liftIO $ getNewsList conn
   let news          = newsToResponse <$> newsDB
       printableNews = encode news
@@ -242,15 +255,17 @@ getNewsListHandler = do
 
 updateNewsHandler :: Handler
 updateNewsHandler = do
-  req  <- asks hRequest
+  req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
-  body <- liftIO $ requestBody req
+  body  <- liftIO $ requestBody req
   let updateNewsData =
         eitherDecode $ LB.fromStrict body :: Either String UpdateNewsRequest
       newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (goUpdateNews conn newsId) updateNewsData
+  liftIO $ either (pure . reportParseError)
+                  (goUpdateNews conn newsId)
+                  updateNewsData
  where
   goUpdateNews conn newsId newsData = do
     let partial = requestToUpdateNews newsData
@@ -262,9 +277,9 @@ updateNewsHandler = do
 
 publishNewsHandler :: Handler
 publishNewsHandler = do
-  req  <- asks hRequest
+  req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
-  body <- liftIO $ requestBody req
+  body  <- liftIO $ requestBody req
   let newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection

@@ -24,7 +24,7 @@ newtype CreateUserResponse = CreateUserResponse User
 
 instance ToJSON CreateUserResponse where
   toJSON (CreateUserResponse User {..}) = object
-    [ "user_id" .= userId
+    [ "id" .= userId
     , "name" .= userName
     , "surname" .= userSurname
     , "avatar" .= userAvatar

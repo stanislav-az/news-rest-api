@@ -22,7 +22,7 @@ newtype CreateTagResponse = CreateTagResponse Tag
 
 instance ToJSON CreateTagResponse where
   toJSON (CreateTagResponse Tag {..}) =
-    object ["tag_id" .= tagId, "name" .= tagName]
+    object ["id" .= tagId, "name" .= tagName]
 
 requestToTag :: CreateTagRequest -> TagRaw
 requestToTag (CreateTagRequest tag) = tag

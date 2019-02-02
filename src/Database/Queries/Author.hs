@@ -20,7 +20,7 @@ getAuthorsList conn =
   authorsQuery
     = "SELECT  u.*, a.*  FROM authors AS a \
     \INNER JOIN users AS u \
-    \ON u.user_id = a.user_id"
+    \ON u.id = a.user_id"
 
 getAuthorNestedById :: Connection -> Integer -> IO AuthorNested
 getAuthorNestedById conn authorId = do
@@ -32,11 +32,11 @@ getAuthorNestedById conn authorId = do
                       }
  where
   getAuthorQuery
-    = "SELECT author_id, user_id, description FROM authors \
-      \WHERE author_id = ?"
+    = "SELECT id, user_id, description FROM authors \
+      \WHERE id = ?"
   getUserQuery
-    = "SELECT user_id, name, surname, avatar, date_created, is_admin FROM users \
-      \WHERE user_id = ?"
+    = "SELECT id, name, surname, avatar, date_created, is_admin FROM users \
+      \WHERE id = ?"
 
 addAuthorToDB :: Connection -> (UserRaw, AuthorRaw) -> IO (User, Author)
 addAuthorToDB conn (UserRaw {..}, AuthorRaw {..}) = withTransaction conn $ do
@@ -54,12 +54,12 @@ updateAuthor conn authorId AuthorRaw {..} =
 
 insertAuthorQuery :: Query
 insertAuthorQuery =
-  "INSERT INTO authors(author_id, user_id, description) VALUES (default,?,?) \
-  \RETURNING author_id, user_id, description"
+  "INSERT INTO authors(id, user_id, description) VALUES (default,?,?) \
+  \RETURNING id, user_id, description"
 
 updateAuthorQuery :: Query
 updateAuthorQuery =
   "UPDATE authors SET \
     \description = ?\
-    \WHERE author_id = ? \
-    \ RETURNING author_id, user_id, description"
+    \WHERE id = ? \
+    \ RETURNING id, user_id, description"

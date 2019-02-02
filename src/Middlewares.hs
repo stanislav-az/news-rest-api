@@ -3,6 +3,7 @@
 module Middlewares where
 
 import           WebServer.MonadHandler
+import           WebServer.Database
 import           Control.Monad.Reader
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
@@ -60,7 +61,7 @@ getAuthHeader req =
   in  bsId >>= (readMaybe . BS.unpack)
 
 getUser :: PSQL.Connection -> Request -> IO (Maybe User)
-getUser conn req = maybe (pure Nothing) (getUserById conn) $ getAuthHeader req
+getUser conn req = maybe (pure Nothing) (selectById conn) $ getAuthHeader req
 
 hasNoPermissionResponse :: (Applicative m) => m Response
 hasNoPermissionResponse =

@@ -31,9 +31,9 @@ newtype CreateCategoryResponse = CreateCategoryResponse CategoryNested
 
 instance ToJSON CreateCategoryResponse where
   toJSON (CreateCategoryResponse (Parent id name)) =
-    object ["category_id" .= id, "name" .= name]
+    object ["id" .= id, "name" .= name]
   toJSON (CreateCategoryResponse (CategoryNested id name parent)) = object
-    [ "category_id" .= id
+    [ "id" .= id
     , "name" .= name
     , "parent" .= (toJSON $ CreateCategoryResponse parent)
     ]

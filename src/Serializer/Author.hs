@@ -52,7 +52,7 @@ instance ToJSON CreateAuthorResponse where
     , "surname" .= createAuthorResponseSurname
     , "avatar" .= createAuthorResponseAvatar
     , "description" .= createAuthorResponseDescription
-    , "author_id" .= createAuthorResponseId
+    , "id" .= createAuthorResponseId
     , "user_id" .= createAuthorResponseUserId
     , "date_created" .= createAuthorResponseDateCreated
     , "is_admin" .= createAuthorResponseIsAdmin
@@ -62,13 +62,13 @@ newtype UpdateAuthorResponse = UpdateAuthorResponse Author
 
 instance ToJSON UpdateAuthorResponse where
   toJSON (UpdateAuthorResponse Author {..}) =
-    object ["author_id" .= authorId, "user_id" .= authorUserId, "description" .= authorDescription]
+    object ["id" .= authorId, "user_id" .= authorUserId, "description" .= authorDescription]
 
 newtype AuthorNestedResponse = AuthorNestedResponse AuthorNested
 
 instance ToJSON AuthorNestedResponse where
   toJSON (AuthorNestedResponse AuthorNested {..}) = object
-    [ "author_id" .= authorNestedId
+    [ "id" .= authorNestedId
     , "user" .= toJSON (CreateUserResponse authorNestedUser)
     , "description" .= authorNestedDescription
     ]

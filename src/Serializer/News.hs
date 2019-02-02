@@ -47,7 +47,7 @@ newtype CreateNewsResponse = CreateNewsResponse NewsNested
 
 instance ToJSON CreateNewsResponse where
   toJSON (CreateNewsResponse NewsNested {..}) = object
-    [ "news_id" .= newsNestedId
+    [ "id" .= newsNestedId
     , "title" .= newsNestedTitle
     , "date_created" .= newsNestedDateCreated
     , "content" .= newsNestedContent

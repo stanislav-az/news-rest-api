@@ -10,38 +10,39 @@ import           Database.Queries.News
 import           WebServer.MonadHandler
 
 createAuthorRoute :: Route
-createAuthorRoute = PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
+createAuthorRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "POST"
 
 updateAuthorRoute :: Route
 updateAuthorRoute =
-  PathRoute "api" $ PathRoute "author" $ DynamicRoute "id" $ MethodRoute "PATCH"
+  PathRoute "api" $ PathRoute "authors" $ DynamicRoute "id" $ MethodRoute
+    "PATCH"
 
 getAuthorsListRoute :: Route
 getAuthorsListRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "GET"
 
 createUserRoute :: Route
-createUserRoute = PathRoute "api" $ PathRoute "user" $ MethodRoute "POST"
+createUserRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "POST"
 
 getUsersListRoute :: Route
 getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
 
 createTagRoute :: Route
-createTagRoute = PathRoute "api" $ PathRoute "tag" $ MethodRoute "POST"
+createTagRoute = PathRoute "api" $ PathRoute "tags" $ MethodRoute "POST"
 
 updateTagRoute :: Route
 updateTagRoute =
-  PathRoute "api" $ PathRoute "tag" $ DynamicRoute "id" $ MethodRoute "PATCH"
+  PathRoute "api" $ PathRoute "tags" $ DynamicRoute "id" $ MethodRoute "PATCH"
 
 getTagsListRoute :: Route
 getTagsListRoute = PathRoute "api" $ PathRoute "tags" $ MethodRoute "GET"
 
 createCategoryRoute :: Route
 createCategoryRoute =
-  PathRoute "api" $ PathRoute "category" $ MethodRoute "POST"
+  PathRoute "api" $ PathRoute "categories" $ MethodRoute "POST"
 
 updateCategoryRoute :: Route
 updateCategoryRoute =
-  PathRoute "api" $ PathRoute "category" $ DynamicRoute "id" $ MethodRoute
+  PathRoute "api" $ PathRoute "categories" $ DynamicRoute "id" $ MethodRoute
     "PATCH"
 
 getCategoriesListRoute :: Route

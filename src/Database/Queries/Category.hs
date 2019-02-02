@@ -37,18 +37,18 @@ nestCategory conn (Category id name (Just parentId)) = do
 
 selectQueryByIdQuery :: Query
 selectQueryByIdQuery =
-  "SELECT category_id, name, parent_id FROM categories \
-  \WHERE category_id = ?"
+  "SELECT id, name, parent_id FROM categories \
+  \WHERE id = ?"
 
 insertCategoryQuery :: CategoryRaw -> Query
 insertCategoryQuery CategoryRaw {..} =
-  "INSERT INTO categories(category_id,name,parent_id) \
+  "INSERT INTO categories(id,name,parent_id) \
   \ VALUES (default, '"
     <> toQuery categoryRawName
     <> "', "
     <> maybeAddParent
     <> ") "
-    <> "RETURNING category_id, name, parent_id"
+    <> "RETURNING id, name, parent_id"
  where
   maybeAddParent = maybe "default" (fromString . show) categoryRawParentId
 
@@ -60,5 +60,5 @@ updateCategoryQuery CategoryRawPartial {..} =
         ]
   in  "UPDATE categories SET "
         <> params
-        <> "WHERE category_id = ? "
-        <> "RETURNING category_id, name, parent_id"
+        <> "WHERE id = ? "
+        <> "RETURNING id, name, parent_id"
