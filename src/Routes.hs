@@ -11,6 +11,9 @@ import           WebServer.MonadHandler
 import           Serializer.User                ( requestToUser
                                                 , userToResponse
                                                 )
+import           Serializer.Author              ( requestToAuthor
+                                                , authorToResponse
+                                                )
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "POST"
@@ -68,9 +71,9 @@ getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  [ (createAuthorRoute     , checkPermission Admin createAuthorHandler)
-  , (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
-  , (getAuthorsListRoute   , checkPermission Admin getAuthorsListHandler)
+  -- [ (createAuthorRoute     , checkPermission Admin $ create requestToAuthor authorToResponse)
+  [ (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
+  , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)
   , (createUserRoute       , create requestToUser userToResponse)
   , (getUsersListRoute     , list userToResponse)
   , (createTagRoute        , checkPermission Admin createTagHandler)

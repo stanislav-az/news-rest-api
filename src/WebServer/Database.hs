@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module WebServer.Database where
 
@@ -26,13 +27,13 @@ class Persistent entity where
     where
       dbQuery = "SELECT * FROM " <> tableName (Proxy :: Proxy entity) <> " WHERE id = ? ;"
 
-  insert :: (ToRow obj) => Connection -> obj -> IO (Maybe entity)
-  default insert :: (FromRow entity, ToRow obj) => Connection -> obj -> IO (Maybe entity)
+class (Persistent stored) => Fit object stored where
+  insert :: Connection -> object -> IO (Maybe stored)
+  default insert :: (FromRow stored, ToRow object) => Connection -> object -> IO (Maybe stored)
   insert conn item = listToMaybe <$> query conn dbQuery item
     where
       placeholders = toPlaceHoldersList item
-      dbQuery = "INSERT INTO " <> tableName (Proxy :: Proxy entity) <> " VALUES " <> placeholders <> " RETURNING * ;"
-
+      dbQuery = "INSERT INTO " <> tableName (Proxy :: Proxy stored) <> " VALUES " <> placeholders <> " RETURNING * ;"
   -- update :: Connection -> Integer -> IO entity
   -- delete :: Connection -> Integer -> IO ()
 

@@ -33,9 +33,6 @@ instance ToJSON CreateUserResponse where
     , "is_admin" .= userIsAdmin
     ]
 
-class Serializable entity where
-  requestToCreateEntity :: (FromJSON a) => a -> entity
-
 requestToUser :: CreateUserRequest -> UserRaw
 requestToUser (CreateUserRequest user) = user
 

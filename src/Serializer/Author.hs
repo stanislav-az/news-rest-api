@@ -73,20 +73,20 @@ instance ToJSON AuthorNestedResponse where
     , "description" .= authorNestedDescription
     ]
 
-requestToAuthor :: CreateAuthorRequest -> (UserRaw, AuthorRaw)
+requestToAuthor :: CreateAuthorRequest -> (AuthorRaw, UserRaw)
 requestToAuthor CreateAuthorRequest {..} =
-  ( UserRaw { userRawName    = createAuthorRequestName
+  ( AuthorRaw { authorRawDescription = createAuthorRequestDescription },
+    UserRaw { userRawName    = createAuthorRequestName
             , userRawSurname = createAuthorRequestSurname
             , userRawAvatar  = createAuthorRequestAvatar
             }
-  , AuthorRaw { authorRawDescription = createAuthorRequestDescription }
   )
 
 requestToUpdateAuthor :: UpdateAuthorRequest -> AuthorRaw
 requestToUpdateAuthor (UpdateAuthorRequest author) = author
 
-authorToResponse :: (User, Author) -> CreateAuthorResponse
-authorToResponse (User {..}, Author {..}) = CreateAuthorResponse
+authorToResponse :: (Author, User) -> CreateAuthorResponse
+authorToResponse (Author {..}, User {..}) = CreateAuthorResponse
   { createAuthorResponseName        = userName
   , createAuthorResponseSurname     = userSurname
   , createAuthorResponseAvatar      = userAvatar

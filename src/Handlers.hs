@@ -28,8 +28,6 @@ import qualified Config                        as C
 import           Control.Monad.Reader
 import           Data.Maybe                     ( fromMaybe )
 
---type Handler = DynamicPathsMap -> Request -> IO Response
-
 getIdFromUrl :: DynamicPathsMap -> Either String Integer
 getIdFromUrl dpMap =
   (maybe (Left "no info") Right $ lookup "id" dpMap) >>= textToInteger
@@ -58,34 +56,34 @@ updateAuthorHandler = do
                        [("Content-Type", "application/json")]
                        authorJSON
 
-createAuthorHandler :: Handler
-createAuthorHandler = do
-  req  <- asks hRequest
-  body <- liftIO $ requestBody req
-  let createAuthorData =
-        eitherDecode $ LB.fromStrict body :: Either String CreateAuthorRequest
-  conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (createAuthor conn) createAuthorData
- where
-  createAuthor conn authorData = do
-    (user, author) <- addAuthorToDB conn (requestToAuthor authorData)
-    let authorJSON = encode $ authorToResponse (user, author)
-    pure $ responseLBS HTTP.status200
-                       [("Content-Type", "application/json")]
-                       authorJSON
+-- createAuthorHandler :: Handler
+-- createAuthorHandler = do
+--   req  <- asks hRequest
+--   body <- liftIO $ requestBody req
+--   let createAuthorData =
+--         eitherDecode $ LB.fromStrict body :: Either String CreateAuthorRequest
+--   conn <- asks hConnection
+--   liftIO $ either (pure . reportParseError) (createAuthor conn) createAuthorData
+--  where
+--   createAuthor conn authorData = do
+--     (user, author) <- addAuthorToDB conn (requestToAuthor authorData)
+--     let authorJSON = encode $ authorToResponse (user, author)
+--     pure $ responseLBS HTTP.status200
+--                        [("Content-Type", "application/json")]
+--                        authorJSON
 
-getAuthorsListHandler :: Handler
-getAuthorsListHandler = do
-  conn            <- asks hConnection
-  usersAndAuthors <- liftIO $ getAuthorsList conn
-  let authors          = authorToResponse <$> usersAndAuthors
-      printableAuthors = encode authors
-  pure $ responseLBS HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableAuthors
+-- getAuthorsListHandler :: Handler
+-- getAuthorsListHandler = do
+--   conn            <- asks hConnection
+--   usersAndAuthors <- liftIO $ getAuthorsList conn
+--   let authors          = authorToResponse <$> usersAndAuthors
+--       printableAuthors = encode authors
+--   pure $ responseLBS HTTP.status200
+--                      [("Content-Type", "application/json")]
+--                      printableAuthors
 
 create
-  :: (FromJSON a, PSQL.ToRow b, Persistent c, ToJSON d)
+  :: (FromJSON a, PSQL.ToRow b, Fit b c, Persistent c, ToJSON d)
   => (a -> b)
   -> (c -> d)
   -> Handler

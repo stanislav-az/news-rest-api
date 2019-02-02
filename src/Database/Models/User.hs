@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Database.Models.User where
 
@@ -27,6 +28,8 @@ instance FromRow User where
 
 instance Persistent User where
   tableName _ = "users"
+
+instance Fit UserRaw User where
 
 data UserRaw = UserRaw {
   userRawName :: Text,
