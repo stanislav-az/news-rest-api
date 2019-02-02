@@ -94,8 +94,9 @@ createUserHandler = do
   liftIO $ either (pure . reportParseError) (createUser conn) createUserData
  where
   createUser conn userData = do
-    user <- addUserToDB conn (requestToUser userData)
-    let userJSON = encode $ userToResponse user
+    mbUser <- insert conn (requestToUser userData)
+    let user = fromMaybe (error "Could not insert") mbUser
+        userJSON = encode $ userToResponse user
     pure $ responseLBS HTTP.status200
                        [("Content-Type", "application/json")]
                        userJSON

@@ -12,7 +12,8 @@ newtype CreateUserRequest = CreateUserRequest UserRaw
 
 instance FromJSON CreateUserRequest where
   parseJSON = withObject "CreateUserRequest" $ \v ->
-    fmap CreateUserRequest $ UserRaw
+    fmap CreateUserRequest
+      $   UserRaw
       <$> v
       .:  "name"
       <*> v
@@ -31,6 +32,9 @@ instance ToJSON CreateUserResponse where
     , "date_created" .= userDateCreated
     , "is_admin" .= userIsAdmin
     ]
+
+class Serializable entity where
+  requestToCreateEntity :: (FromJSON a) => a -> entity
 
 requestToUser :: CreateUserRequest -> UserRaw
 requestToUser (CreateUserRequest user) = user

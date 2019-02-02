@@ -38,6 +38,8 @@ instance Persistent (Author, User) where
 
   selectById conn id = undefined
 
+  insert conn author = undefined
+
 data AuthorNested = AuthorNested {
   authorNestedId :: Integer,
   authorNestedUser :: User,
