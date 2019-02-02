@@ -84,22 +84,25 @@ getAuthorsListHandler = do
                      [("Content-Type", "application/json")]
                      printableAuthors
 
-createUserHandler :: Handler
-createUserHandler = do
+create
+  :: (FromJSON a, PSQL.ToRow b, Persistent c, ToJSON d)
+  => (a -> b)
+  -> (c -> d)
+  -> Handler
+create requestToEntity entityToResponse = do
   req  <- asks hRequest
-  body <- liftIO $ requestBody req
-  let createUserData =
-        eitherDecode $ LB.fromStrict body :: Either String CreateUserRequest
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (createUser conn) createUserData
+  body <- liftIO $ requestBody req
+  let createEntityData = eitherDecode $ LB.fromStrict body
+  liftIO $ either (pure . reportParseError) (createEntity conn) createEntityData
  where
-  createUser conn userData = do
-    mbUser <- insert conn (requestToUser userData)
-    let user = fromMaybe (error "Could not insert") mbUser
-        userJSON = encode $ userToResponse user
+  createEntity conn entityData = do
+    mbEntity <- insert conn (requestToEntity entityData)
+    let entity     = fromMaybe (error "Could not insert entity") mbEntity
+        entityJSON = encode $ entityToResponse entity
     pure $ responseLBS HTTP.status200
                        [("Content-Type", "application/json")]
-                       userJSON
+                       entityJSON
 
 reportParseError :: String -> Response
 reportParseError err = responseLBS HTTP.status400

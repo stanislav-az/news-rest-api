@@ -8,7 +8,9 @@ import           Handlers
 import           Middlewares
 import           Database.Queries.News
 import           WebServer.MonadHandler
-import           Serializer.User                ( userToResponse )
+import           Serializer.User                ( requestToUser
+                                                , userToResponse
+                                                )
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "POST"
@@ -69,7 +71,7 @@ routes =
   [ (createAuthorRoute     , checkPermission Admin createAuthorHandler)
   , (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
   , (getAuthorsListRoute   , checkPermission Admin getAuthorsListHandler)
-  , (createUserRoute       , createUserHandler)
+  , (createUserRoute       , create requestToUser userToResponse)
   , (getUsersListRoute     , list userToResponse)
   , (createTagRoute        , checkPermission Admin createTagHandler)
   , (updateTagRoute        , checkPermission Admin updateTagHandler)

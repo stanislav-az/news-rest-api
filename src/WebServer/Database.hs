@@ -31,14 +31,14 @@ class Persistent entity where
   insert conn item = listToMaybe <$> query conn dbQuery item
     where
       placeholders = toPlaceHoldersList item
-      dbQuery = "INSERT INTO " <> tableName (Proxy :: Proxy entity) <> " VALUES " <> placeholders <> " RETURNING *"
+      dbQuery = "INSERT INTO " <> tableName (Proxy :: Proxy entity) <> " VALUES " <> placeholders <> " RETURNING * ;"
 
   -- update :: Connection -> Integer -> IO entity
   -- delete :: Connection -> Integer -> IO ()
 
 
 toPlaceHoldersList :: (ToRow a) => a -> Query
-toPlaceHoldersList item = replicateWithPositiveLength (length $ toRow item)
+toPlaceHoldersList = replicateWithPositiveLength . length . toRow
  where
   replicateWithPositiveLength 0 = ""
   replicateWithPositiveLength 1 = "(?)"
