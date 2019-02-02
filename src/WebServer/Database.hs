@@ -20,7 +20,7 @@ class Persistent entity where
       dbQuery = "SELECT * FROM " <> tableName (Proxy :: Proxy entity) <> " LIMIT ? OFFSET ? ;"
 
   selectById :: Connection -> Integer -> IO (Maybe entity)
-  default selectById :: (FromRow entity, Show entity) => Connection -> Integer -> IO (Maybe entity)
+  default selectById :: (FromRow entity) => Connection -> Integer -> IO (Maybe entity)
   selectById conn id = listToMaybe <$> query conn dbQuery [id]
     where
       dbQuery = "SELECT * FROM " <> tableName (Proxy :: Proxy entity) <> " WHERE id = ? ;"

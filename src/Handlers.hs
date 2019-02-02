@@ -105,19 +105,19 @@ reportParseError err = responseLBS HTTP.status400
                                    [("Content-Type", "plain/text")]
                                    ("Parse error: " <> BC.pack err)
 
-getUsersListHandler :: Handler
-getUsersListHandler = do
+list :: (Persistent a, ToJSON b) => (a -> b) -> Handler
+list entityToResponse = do
   conn     <- asks hConnection
   conf     <- asks hConfig
   req      <- asks hRequest
   maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
   let pagination = getLimitOffset maxLimit req
-  usersDB <- liftIO $ select conn pagination
-  let users          = userToResponse <$> usersDB
-      printableUsers = encode users
+  entities <- liftIO $ select conn pagination
+  let responseEntities  = entityToResponse <$> entities
+      printableEntities = encode responseEntities
   pure $ responseLBS HTTP.status200
                      [("Content-Type", "application/json")]
-                     printableUsers
+                     printableEntities
 
 -- Tag
 
