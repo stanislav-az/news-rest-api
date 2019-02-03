@@ -12,16 +12,6 @@ import           Database.Queries.Queries
 import           Database.Queries.User
 import qualified Data.Text                     as T
 
-getAuthorsList :: Connection -> IO [(User, Author)]
-getAuthorsList conn =
-  fmap inductiveTupleToTuple
-    <$> (query_ conn authorsQuery :: IO [User :. Author])
- where
-  authorsQuery
-    = "SELECT  u.*, a.*  FROM authors AS a \
-    \INNER JOIN users AS u \
-    \ON u.id = a.user_id"
-
 getAuthorNestedById :: Connection -> Integer -> IO AuthorNested
 getAuthorNestedById conn authorId = do
   (Author {..} : _) <- query conn getAuthorQuery (Only authorId)
@@ -31,22 +21,12 @@ getAuthorNestedById conn authorId = do
                       , authorNestedDescription = authorDescription
                       }
  where
-  getAuthorQuery
-    = "SELECT id, user_id, description FROM authors \
+  getAuthorQuery =
+    "SELECT id, user_id, description FROM authors \
       \WHERE id = ?"
   getUserQuery
     = "SELECT id, name, surname, avatar, date_created, is_admin FROM users \
       \WHERE id = ?"
-
-addAuthorToDB :: Connection -> (UserRaw, AuthorRaw) -> IO (User, Author)
-addAuthorToDB conn (UserRaw {..}, AuthorRaw {..}) = withTransaction conn $ do
-  (user : _) <- query conn
-                      insertUserQuery
-                      (userRawName, userRawSurname, userRawAvatar)
-  (author : _) <- query conn
-                        insertAuthorQuery
-                        (userId user, authorRawDescription)
-  pure (user, author)
 
 updateAuthor :: Connection -> Integer -> AuthorRaw -> IO Author
 updateAuthor conn authorId AuthorRaw {..} =

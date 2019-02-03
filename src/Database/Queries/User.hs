@@ -9,8 +9,8 @@ import           Database.Connection
 import           Database.Queries.Queries
 import qualified Data.Text                     as T
 
-getUsersList :: Connection -> IO [User]
-getUsersList conn = getList conn "users"
+-- getUsersList :: Connection -> IO [User]
+-- getUsersList conn = getList conn "users"
 
 insertUserQuery :: Query
 insertUserQuery =

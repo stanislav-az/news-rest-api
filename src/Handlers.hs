@@ -56,37 +56,7 @@ updateAuthorHandler = do
                        [("Content-Type", "application/json")]
                        authorJSON
 
--- createAuthorHandler :: Handler
--- createAuthorHandler = do
---   req  <- asks hRequest
---   body <- liftIO $ requestBody req
---   let createAuthorData =
---         eitherDecode $ LB.fromStrict body :: Either String CreateAuthorRequest
---   conn <- asks hConnection
---   liftIO $ either (pure . reportParseError) (createAuthor conn) createAuthorData
---  where
---   createAuthor conn authorData = do
---     (user, author) <- addAuthorToDB conn (requestToAuthor authorData)
---     let authorJSON = encode $ authorToResponse (user, author)
---     pure $ responseLBS HTTP.status200
---                        [("Content-Type", "application/json")]
---                        authorJSON
-
--- getAuthorsListHandler :: Handler
--- getAuthorsListHandler = do
---   conn            <- asks hConnection
---   usersAndAuthors <- liftIO $ getAuthorsList conn
---   let authors          = authorToResponse <$> usersAndAuthors
---       printableAuthors = encode authors
---   pure $ responseLBS HTTP.status200
---                      [("Content-Type", "application/json")]
---                      printableAuthors
-
-create
-  :: (FromJSON a, PSQL.ToRow b, Fit b c, Persistent c, ToJSON d)
-  => (a -> b)
-  -> (c -> d)
-  -> Handler
+create :: (FromJSON a, Fit b c, ToJSON d) => (a -> b) -> (c -> d) -> Handler
 create requestToEntity entityToResponse = do
   req  <- asks hRequest
   conn <- asks hConnection

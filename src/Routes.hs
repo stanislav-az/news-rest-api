@@ -71,8 +71,8 @@ getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  -- [ (createAuthorRoute     , checkPermission Admin $ create requestToAuthor authorToResponse)
-  [ (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
+  [ (createAuthorRoute     , checkPermission Admin $ create requestToAuthor authorToResponse)
+  , (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
   , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)
   , (createUserRoute       , create requestToUser userToResponse)
   , (getUsersListRoute     , list userToResponse)

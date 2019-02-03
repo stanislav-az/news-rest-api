@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Database.Models.Author where
 
@@ -27,18 +29,30 @@ instance Persistent (Author, User) where
 
   select :: Connection -> (Limit, Offset) -> IO [(Author, User)]
   select conn (Limit limit, Offset offset) =
-    fmap inductiveTupleToTuple
-      <$> (query_ conn authorsQuery :: IO [Author :. User])
+    fmap inductiveTupleToTuple <$> (query conn authorsQuery [limit, offset])
    where
     authorsQuery
-      = "SELECT  u.*, a.*  FROM authors a \
+      = "SELECT  a.*, u.* FROM authors a \
           \INNER JOIN users u \
           \ON u.id = a.user_id \
           \LIMIT ? OFFSET ? ;"
 
   selectById conn id = undefined
 
-  -- insert conn author = undefined
+instance Fit (AuthorRaw, UserRaw) (Author, User) where
+  insert conn (AuthorRaw {..}, userRaw) =
+    withTransaction conn $ insert conn userRaw >>= addAuthor
+   where
+    addAuthor (Just user@User {..}) = do
+      authorList <- query conn dbQuery (userId, authorRawDescription)
+      case authorList of
+        [author] -> pure $ Just (author, user)
+        _        -> pure Nothing
+    addAuthor Nothing = pure Nothing
+    dbQuery =
+      "INSERT INTO authors \
+      \VALUES (default,?,?) \
+      \RETURNING * ;"
 
 data AuthorNested = AuthorNested {
   authorNestedId :: Integer,
