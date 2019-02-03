@@ -1,25 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Handlers where
 
-import qualified Data.ByteString               as B
 import           Network.Wai
 import qualified Database.PostgreSQL.Simple    as PSQL
 import qualified Network.HTTP.Types            as HTTP
 import qualified Data.ByteString.Lazy          as LB
 import qualified Data.ByteString.Lazy.Char8    as BC
-import qualified Data.Text                     as T
 import           Data.Aeson
-import           Serializer.User
 import           Serializer.Author
 import           Serializer.Tag
 import           Serializer.Category
 import           Serializer.News
 import           Database.Queries.Author
-import           Database.Queries.User
 import           Database.Queries.Tag
 import           Database.Queries.Category
 import           Database.Queries.News
-import           Database.Models.User
 import           Helpers
 import           WebServer.MonadHandler
 import           WebServer.Pagination
@@ -31,30 +27,6 @@ import           Data.Maybe                     ( fromMaybe )
 getIdFromUrl :: DynamicPathsMap -> Either String Integer
 getIdFromUrl dpMap =
   (maybe (Left "no info") Right $ lookup "id" dpMap) >>= textToInteger
-
-updateAuthorHandler :: Handler
-updateAuthorHandler = do
-  req   <- asks hRequest
-  dpMap <- asks hDynamicPathsMap
-  body  <- liftIO $ requestBody req
-  let updateAuthorData =
-        eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
-      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  liftIO $ either (pure . reportParseError)
-                  (goUpdateAuthor conn authorId)
-                  updateAuthorData
- where
-  goUpdateAuthor
-    :: PSQL.Connection -> Integer -> UpdateAuthorRequest -> IO Response
-  goUpdateAuthor conn authorId authorData = do
-    let partial = requestToUpdateAuthor authorData
-    author <- updateAuthor conn authorId partial
-    let authorJSON = encode $ authorToUpdateResponse author
-    pure $ responseLBS HTTP.status200
-                       [("Content-Type", "application/json")]
-                       authorJSON
 
 create :: (FromJSON a, Fit b c, ToJSON d) => (a -> b) -> (c -> d) -> Handler
 create requestToEntity entityToResponse = do
@@ -91,33 +63,29 @@ list entityToResponse = do
                      [("Content-Type", "application/json")]
                      printableEntities
 
--- Tag
-
-createTagHandler :: Handler
-createTagHandler = do
-  req  <- asks hRequest
-  body <- liftIO $ requestBody req
-  let createTagData =
-        eitherDecode $ LB.fromStrict body :: Either String CreateTagRequest
+updateAuthorHandler :: Handler
+updateAuthorHandler = do
+  req   <- asks hRequest
+  dpMap <- asks hDynamicPathsMap
+  body  <- liftIO $ requestBody req
+  let updateAuthorData =
+        eitherDecode $ LB.fromStrict body :: Either String UpdateAuthorRequest
+      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
   conn <- asks hConnection
-  liftIO $ either (pure . reportParseError) (createTag conn) createTagData
+  liftIO $ either (pure . reportParseError)
+                  (goUpdateAuthor conn authorId)
+                  updateAuthorData
  where
-  createTag conn tagData = do
-    tag <- addTagToDB conn $ requestToTag tagData
-    let tagJSON = encode $ tagToResponse tag
+  goUpdateAuthor
+    :: PSQL.Connection -> Integer -> UpdateAuthorRequest -> IO Response
+  goUpdateAuthor conn authorId authorData = do
+    let partial = requestToUpdateAuthor authorData
+    author <- updateAuthor conn authorId partial
+    let authorJSON = encode $ authorToUpdateResponse author
     pure $ responseLBS HTTP.status200
                        [("Content-Type", "application/json")]
-                       tagJSON
-
-getTagsListHandler :: Handler
-getTagsListHandler = do
-  conn   <- asks hConnection
-  tagsDB <- liftIO $ getTagsList conn
-  let tags          = tagToResponse <$> tagsDB
-      printableTags = encode tags
-  pure $ responseLBS HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableTags
+                       authorJSON
 
 updateTagHandler :: Handler
 updateTagHandler = do
@@ -141,37 +109,6 @@ updateTagHandler = do
                        [("Content-Type", "application/json")]
                        tagJSON
 
--- Category
-
-createCategoryHandler :: Handler
-createCategoryHandler = do
-  req   <- asks hRequest
-  dpMap <- asks hDynamicPathsMap
-  body  <- liftIO $ requestBody req
-  let createCategoryData =
-        eitherDecode $ LB.fromStrict body :: Either String CreateCategoryRequest
-  conn <- asks hConnection
-  liftIO $ either (pure . reportParseError)
-                  (createCategory conn)
-                  createCategoryData
- where
-  createCategory conn categoryData = do
-    category <- addCategoryToDB conn $ requestToCategory categoryData
-    let categoryJSON = encode $ categoryNestedToResponse category
-    pure $ responseLBS HTTP.status200
-                       [("Content-Type", "application/json")]
-                       categoryJSON
-
-getCategoriesListHandler :: Handler
-getCategoriesListHandler = do
-  conn         <- asks hConnection
-  categoriesDB <- liftIO $ getCategoriesList conn
-  let categories          = categoryNestedToResponse <$> categoriesDB
-      printableCategories = encode categories
-  pure $ responseLBS HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableCategories
-
 updateCategoryHandler :: Handler
 updateCategoryHandler = do
   req   <- asks hRequest
@@ -194,36 +131,6 @@ updateCategoryHandler = do
     pure $ responseLBS HTTP.status200
                        [("Content-Type", "application/json")]
                        categoryJSON
-
---News
-
-createNewsDraftHandler :: Handler
-createNewsDraftHandler = do
-  req  <- asks hRequest
-  body <- liftIO $ requestBody req
-  let createNewsDraftData =
-        eitherDecode $ LB.fromStrict body :: Either String CreateNewsRequest
-  conn <- asks hConnection
-  liftIO $ either (pure . reportParseError)
-                  (createNewsDraft conn)
-                  createNewsDraftData
- where
-  createNewsDraft conn newsData = do
-    news <- addNewsToDB conn $ requestToNews newsData
-    let newsJSON = encode $ newsToResponse news
-    pure $ responseLBS HTTP.status200
-                       [("Content-Type", "application/json")]
-                       newsJSON
-
-getNewsListHandler :: Handler
-getNewsListHandler = do
-  conn   <- asks hConnection
-  newsDB <- liftIO $ getNewsList conn
-  let news          = newsToResponse <$> newsDB
-      printableNews = encode news
-  pure $ responseLBS HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableNews
 
 updateNewsHandler :: Handler
 updateNewsHandler = do

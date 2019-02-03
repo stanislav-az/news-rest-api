@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Serializer.Category where
 
 import           Data.Aeson
-import qualified Data.Text                     as T
 import           Database.Models.Category
 
 newtype CreateCategoryRequest = CreateCategoryRequest CategoryRaw

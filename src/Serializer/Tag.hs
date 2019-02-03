@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Serializer.Tag where
 
 import           Data.Aeson
-import qualified Data.Text                     as T
 import           Database.Models.Tag
 
 newtype CreateTagRequest = CreateTagRequest TagRaw

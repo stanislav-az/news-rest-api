@@ -1,12 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Serializer.User where
 
 import           Data.Aeson
-import qualified Data.Text                     as T
-import           Data.Time
 import           Database.Models.User
-import           Data.Functor.Identity
 
 newtype CreateUserRequest = CreateUserRequest UserRaw
 

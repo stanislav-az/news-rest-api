@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Database.Connection where
 
 import qualified Database.PostgreSQL.Simple    as PSQL

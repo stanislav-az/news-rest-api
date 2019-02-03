@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module WebServer.Application where
 
 import           Network.Wai
-import WebServer.Router
+import           WebServer.Router
 import           Routes
 import           Network.HTTP.Types
 import           Data.List                      ( intersperse )

@@ -1,54 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Database.Queries.News where
 
+import           Control.Monad
 import           Database.PostgreSQL.Simple
 import           Database.Models.News
 import           Database.Models.User
-import           Database.Queries.Category
-import           Database.Queries.Tag
-import           Database.Queries.Author
-import           Database.Connection
 import           Database.Queries.Queries
-import qualified Data.Text                     as T
-import           Data.Functor.Identity
-import           Control.Monad
 import           Helpers
-
-getNewsList :: Connection -> IO [NewsNested]
-getNewsList conn = getList conn "news" >>= (mapM (nestNews conn))
-
-nestNews :: Connection -> News -> IO NewsNested
-nestNews conn News {..} = do
-  category <- getCategoryById conn newsCategoryId
-  author   <- getAuthorNestedById conn newsAuthorId
-  tags     <- getTagsByNewsId conn newsId
-  pure $ NewsNested { newsNestedId          = newsId
-                    , newsNestedTitle       = newsTitle
-                    , newsNestedDateCreated = newsDateCreated
-                    , newsNestedContent     = newsContent
-                    , newsNestedMainPhoto   = newsMainPhoto
-                    , newsNestedIsDraft     = newsIsDraft
-                    , newsNestedAuthor      = author
-                    , newsNestedCategory    = category
-                    , newsNestedTags        = tags
-                    }
-
-addNewsToDB :: Connection -> NewsRaw -> IO NewsNested
-addNewsToDB conn (NewsRaw NewsRawT {..}) = withTransaction conn $ do
-  (news : _) <- query
-    conn
-    insertNewsQuery
-    ( runIdentity newsRawTitle
-    , runIdentity newsRawAuthorId
-    , runIdentity newsRawCategoryId
-    , runIdentity newsRawContent
-    , runIdentity newsRawMainPhoto
-    )
-  let thisNewsId = newsId news
-      tagIds     = runIdentity newsRawTagsIds
-  forM_ tagIds $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
-  nestNews conn news
 
 publishNews :: Connection -> Integer -> IO NewsNested
 publishNews conn newsId =
@@ -73,17 +33,6 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
         makeNewTagConnections = forM_ tagIds
           $ \tagId -> execute conn insertTagsNewsQuery (tagId, updatingNewsId)
     nestNews conn news
-
-insertNewsQuery :: Query
-insertNewsQuery =
-  "INSERT INTO news(id, title, date_created, author_id, category_id, content, main_photo, is_draft) \
-  \ VALUES (default,?,default,?,?,?,?,default) \
-  \ RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
-
-insertTagsNewsQuery :: Query
-insertTagsNewsQuery =
-  "INSERT INTO tags_news(tag_id, news_id) \
-  \ VALUES (?,?) "
 
 deleteTagsNewsQuery :: Query
 deleteTagsNewsQuery = "DELETE FROM tags_news WHERE news_id = ?"

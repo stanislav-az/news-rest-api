@@ -4,15 +4,14 @@
 
 module Database.Models.User where
 
+import           Data.Text
+import           Data.Time
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.ToField
 import           Database.PostgreSQL.Simple.ToRow
 import           Database.PostgreSQL.Simple.FromRow
 import           Database.PostgreSQL.Simple.Types
-import           Data.Text
-import           Data.Time
 import           WebServer.Database
-import           WebServer.Pagination
 
 data User = User {
   userId :: Integer,

@@ -1,15 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Serializer.News where
 
 import           Data.Aeson
-import qualified Data.Text                     as T
-import           Data.Time
+import           Data.Functor.Identity
 import           Database.Models.News
 import           Serializer.Author
 import           Serializer.Category
 import           Serializer.Tag
-import           Data.Functor.Identity
 
 newtype CreateNewsRequest = CreateNewsRequest (NewsRawT Identity)
 
@@ -53,7 +52,7 @@ instance ToJSON CreateNewsResponse where
     , "content" .= newsNestedContent
     , "main_photo" .= newsNestedMainPhoto
     , "is_draft" .= newsNestedIsDraft
-    , "author" .= toJSON (AuthorNestedResponse newsNestedAuthor)
+    , "author" .= toJSON (authorToResponse newsNestedAuthorAndUser)
     , "category" .= toJSON (CreateCategoryResponse newsNestedCategory)
     , "tags" .= toJSON (CreateTagResponse <$> newsNestedTags)
     ]

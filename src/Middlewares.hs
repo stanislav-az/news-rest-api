@@ -7,7 +7,6 @@ import           WebServer.Database
 import           Control.Monad.Reader
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
-import           Database.Queries.User
 import           Database.Models.User
 import qualified Data.Text                     as T
 import qualified Data.ByteString.Char8         as BS

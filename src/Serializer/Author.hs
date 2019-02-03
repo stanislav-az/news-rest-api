@@ -2,13 +2,12 @@
 {-# LANGUAGE RecordWildCards #-}
 module Serializer.Author where
 
-import           Data.Aeson
 import qualified Data.Text                     as T
+import           Data.Aeson
 import           Data.Time
 import           Database.Models.Author
 import           Database.Models.User
 import           Serializer.User
-import           Data.Functor.Identity
 
 data CreateAuthorRequest = CreateAuthorRequest {
   createAuthorRequestName :: T.Text,
@@ -61,22 +60,16 @@ instance ToJSON CreateAuthorResponse where
 newtype UpdateAuthorResponse = UpdateAuthorResponse Author
 
 instance ToJSON UpdateAuthorResponse where
-  toJSON (UpdateAuthorResponse Author {..}) =
-    object ["id" .= authorId, "user_id" .= authorUserId, "description" .= authorDescription]
-
-newtype AuthorNestedResponse = AuthorNestedResponse AuthorNested
-
-instance ToJSON AuthorNestedResponse where
-  toJSON (AuthorNestedResponse AuthorNested {..}) = object
-    [ "id" .= authorNestedId
-    , "user" .= toJSON (CreateUserResponse authorNestedUser)
-    , "description" .= authorNestedDescription
+  toJSON (UpdateAuthorResponse Author {..}) = object
+    [ "id" .= authorId
+    , "user_id" .= authorUserId
+    , "description" .= authorDescription
     ]
 
 requestToAuthor :: CreateAuthorRequest -> (AuthorRaw, UserRaw)
 requestToAuthor CreateAuthorRequest {..} =
-  ( AuthorRaw { authorRawDescription = createAuthorRequestDescription },
-    UserRaw { userRawName    = createAuthorRequestName
+  ( AuthorRaw { authorRawDescription = createAuthorRequestDescription }
+  , UserRaw { userRawName    = createAuthorRequestName
             , userRawSurname = createAuthorRequestSurname
             , userRawAvatar  = createAuthorRequestAvatar
             }
@@ -91,7 +84,7 @@ authorToResponse (Author {..}, User {..}) = CreateAuthorResponse
   , createAuthorResponseSurname     = userSurname
   , createAuthorResponseAvatar      = userAvatar
   , createAuthorResponseDescription = authorDescription
-  , createAuthorResponseId      = authorId
+  , createAuthorResponseId          = authorId
   , createAuthorResponseUserId      = userId
   , createAuthorResponseDateCreated = userDateCreated
   , createAuthorResponseIsAdmin     = userIsAdmin

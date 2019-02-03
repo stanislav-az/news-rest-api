@@ -26,6 +26,7 @@ class Persistent entity where
   selectById conn id = listToMaybe <$> query conn dbQuery [id]
     where
       dbQuery = "SELECT * FROM " <> tableName (Proxy :: Proxy entity) <> " WHERE id = ? ;"
+  -- delete :: Connection -> Integer -> IO ()
 
 class (Persistent stored) => Fit object stored where
   insert :: Connection -> object -> IO (Maybe stored)
@@ -35,8 +36,6 @@ class (Persistent stored) => Fit object stored where
       placeholders = toPlaceHoldersList item
       dbQuery = "INSERT INTO " <> tableName (Proxy :: Proxy stored) <> " VALUES " <> placeholders <> " RETURNING * ;"
   -- update :: Connection -> Integer -> IO entity
-  -- delete :: Connection -> Integer -> IO ()
-
 
 toPlaceHoldersList :: (ToRow a) => a -> Query
 toPlaceHoldersList = replicateWithPositiveLength . length . toRow

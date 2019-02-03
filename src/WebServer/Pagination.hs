@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module WebServer.Pagination where
+
 import           Control.Monad
-import           Data.Maybe
+import           Data.Maybe                     ( fromMaybe )
 import qualified Data.ByteString.Char8         as B8
-import           Network.Wai
 import qualified Text.Read                     as R
+import           Network.Wai
 
 newtype Limit = Limit {
   unwrapLimit :: Integer

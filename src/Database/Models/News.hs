@@ -1,12 +1,25 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Database.Models.News where
 
+import           Database.PostgreSQL.Simple
+import           Database.PostgreSQL.Simple.ToField
+import           Database.PostgreSQL.Simple.ToRow
 import           Database.PostgreSQL.Simple.FromRow
+import           Database.PostgreSQL.Simple.Types
 import           Data.Text
 import           Data.Time
 import           Data.Functor.Identity
+import           WebServer.Database
+import           WebServer.Pagination
 import           Database.Models.Category
+import           Database.Models.User
 import           Database.Models.Author
 import           Database.Models.Tag
+import           Database.Queries.Tag
+import           Control.Monad
 
 data News = News {
   newsId :: Integer,
@@ -31,6 +44,11 @@ instance FromRow News where
       <*> field
       <*> field
 
+instance Persistent News where
+  tableName _ = "news"
+
+instance Fit NewsRaw News where
+
 data NewsNested = NewsNested {
   newsNestedId :: Integer,
   newsNestedTitle :: Text,
@@ -38,10 +56,26 @@ data NewsNested = NewsNested {
   newsNestedContent :: Text,
   newsNestedMainPhoto :: Text,
   newsNestedIsDraft :: Bool,
-  newsNestedAuthor :: AuthorNested,
+  newsNestedAuthorAndUser :: (Author,User),
   newsNestedCategory :: CategoryNested,
   newsNestedTags :: [Tag]
 }
+
+instance Persistent NewsNested where
+  tableName _ = error "No table for NewsNested"
+
+  select conn pagination = select conn pagination >>= (mapM (nestNews conn))
+
+  selectById conn newsId = selectById conn newsId >>= (maybeNestNews conn)
+
+instance Fit NewsRaw NewsNested where
+  insert conn newsRaw@(NewsRaw NewsRawT {..}) = withTransaction conn $ do
+    (Just news) <- insert conn newsRaw
+    let thisNewsId = newsId news
+        tagIds     = runIdentity newsRawTagsIds
+    forM_ tagIds
+      $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
+    Just <$> nestNews conn news
 
 data NewsRawT f = NewsRawT {
   newsRawTitle :: f Text,
@@ -54,6 +88,18 @@ data NewsRawT f = NewsRawT {
 
 newtype NewsRaw = NewsRaw (NewsRawT Identity)
 
+instance ToRow NewsRaw where
+  toRow (NewsRaw NewsRawT {..}) =
+    [ toField Default
+    , toField $ runIdentity newsRawTitle
+    , toField Default
+    , toField $ runIdentity newsRawAuthorId
+    , toField $ runIdentity newsRawCategoryId
+    , toField $ runIdentity newsRawContent
+    , toField $ runIdentity newsRawMainPhoto
+    , toField Default
+    ]
+
 newtype NewsRawPartial = NewsRawPartial (NewsRawT Maybe)
 
 data TagNews = TagNews {
@@ -61,6 +107,39 @@ data TagNews = TagNews {
   tgNewsId :: Integer
 }
 
+-- instance ToRow TagNews where
+--   toRow TagNews {..} = [toField tgTagId, toField tgNewsId]
+
 instance FromRow TagNews where
   fromRow = TagNews <$> field <*> field
 
+-- instance Persistent TagNews where
+--   tableName _ = "tags_news"
+
+--   selectById = error "Table tags_news has composite primary key"
+
+-- instance Fit TagNews TagNews where
+
+maybeNestNews :: Connection -> Maybe News -> IO (Maybe NewsNested)
+maybeNestNews conn = maybe (pure Nothing) (fmap Just . nestNews conn)
+
+nestNews :: Connection -> News -> IO NewsNested
+nestNews conn News {..} = do
+  (Just category     ) <- selectById conn newsCategoryId -- Pattern matching to Just because db constraints let us to do it
+  (Just authorAndUser) <- selectById conn newsAuthorId
+  tags                 <- getTagsByNewsId conn newsId
+  pure $ NewsNested { newsNestedId            = newsId
+                    , newsNestedTitle         = newsTitle
+                    , newsNestedDateCreated   = newsDateCreated
+                    , newsNestedContent       = newsContent
+                    , newsNestedMainPhoto     = newsMainPhoto
+                    , newsNestedIsDraft       = newsIsDraft
+                    , newsNestedAuthorAndUser = authorAndUser
+                    , newsNestedCategory      = category
+                    , newsNestedTags          = tags
+                    }
+
+insertTagsNewsQuery :: Query
+insertTagsNewsQuery =
+  "INSERT INTO tags_news(tag_id, news_id) \
+  \ VALUES (?,?) "

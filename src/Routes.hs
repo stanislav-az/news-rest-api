@@ -14,6 +14,15 @@ import           Serializer.User                ( requestToUser
 import           Serializer.Author              ( requestToAuthor
                                                 , authorToResponse
                                                 )
+import           Serializer.Tag                 ( requestToTag
+                                                , tagToResponse
+                                                )
+import           Serializer.Category            ( requestToCategory
+                                                , categoryNestedToResponse
+                                                )
+import           Serializer.News                ( requestToNews
+                                                , newsToResponse
+                                                )
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "POST"
@@ -71,19 +80,23 @@ getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
-  [ (createAuthorRoute     , checkPermission Admin $ create requestToAuthor authorToResponse)
-  , (updateAuthorRoute     , checkPermission Admin updateAuthorHandler)
-  , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)
-  , (createUserRoute       , create requestToUser userToResponse)
-  , (getUsersListRoute     , list userToResponse)
-  , (createTagRoute        , checkPermission Admin createTagHandler)
-  , (updateTagRoute        , checkPermission Admin updateTagHandler)
-  , (getTagsListRoute      , getTagsListHandler)
-  , (createCategoryRoute   , checkPermission Admin createCategoryHandler)
+  [ ( createAuthorRoute
+    , checkPermission Admin $ create requestToAuthor authorToResponse
+    )
+  , (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
+  , (getAuthorsListRoute, checkPermission Admin $ list authorToResponse)
+  , (createUserRoute    , create requestToUser userToResponse)
+  , (getUsersListRoute  , list userToResponse)
+  , (createTagRoute, checkPermission Admin $ create requestToTag tagToResponse)
+  , (updateTagRoute     , checkPermission Admin updateTagHandler)
+  , (getTagsListRoute   , list tagToResponse)
+  , ( createCategoryRoute
+    , checkPermission Admin $ create requestToCategory categoryNestedToResponse
+    )
   , (updateCategoryRoute   , checkPermission Admin updateCategoryHandler)
-  , (getCategoriesListRoute, getCategoriesListHandler)
-  , (getNewsListRoute      , getNewsListHandler)
-  , (createNewsDraftRoute  , createNewsDraftHandler)
+  , (getCategoriesListRoute, list categoryNestedToResponse)
+  , (getNewsListRoute      , list newsToResponse)
+  , (createNewsDraftRoute  , create requestToNews newsToResponse)
   , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
   , ( publishNewsRoute
     , checkPermission (Owner isAuthorOfNews) publishNewsHandler

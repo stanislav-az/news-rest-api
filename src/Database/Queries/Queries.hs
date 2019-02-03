@@ -1,11 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Database.Queries.Queries where
 
-import           Database.PostgreSQL.Simple.FromRow
-import           Database.PostgreSQL.Simple
-import           Database.Connection
 import qualified Data.Text                     as T
 import           Data.String
+import           Database.PostgreSQL.Simple
 
 getList :: FromRow a => Connection -> Query -> IO [a]
 getList conn tableName = query_ conn $ "SELECT * FROM " <> tableName
