@@ -47,6 +47,12 @@ instance FromRow News where
 instance Persistent News where
   tableName _ = "news"
 
+  select conn (Limit limit, Offset offset) = query conn dbQuery [limit, offset]
+    where
+      dbQuery = "SELECT * FROM news \
+                \WHERE is_draft = false \
+                \LIMIT ? OFFSET ? ;"
+
 instance Fit NewsRaw News where
 
 data NewsNested = NewsNested {

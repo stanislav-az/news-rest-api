@@ -65,18 +65,34 @@ getCategoriesListRoute =
   PathRoute "api" $ PathRoute "categories" $ MethodRoute "GET"
 
 createNewsDraftRoute :: Route
-createNewsDraftRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "POST"
+createNewsDraftRoute = PathRoute "api" $ PathRoute "posts" $ MethodRoute "POST"
 
 updateNewsRoute :: Route
 updateNewsRoute =
-  PathRoute "api" $ PathRoute "news" $ DynamicRoute "id" $ MethodRoute "PATCH"
+  PathRoute "api" $ PathRoute "posts" $ DynamicRoute "id" $ MethodRoute "PATCH"
 
 publishNewsRoute :: Route
 publishNewsRoute =
-  PathRoute "api" $ PathRoute "news" $ DynamicRoute "id" $ MethodRoute "POST"
+  PathRoute "api" $ PathRoute "posts" $ DynamicRoute "id" $ MethodRoute "POST"
 
 getNewsListRoute :: Route
-getNewsListRoute = PathRoute "api" $ PathRoute "news" $ MethodRoute "GET"
+getNewsListRoute = PathRoute "api" $ PathRoute "posts" $ MethodRoute "GET"
+
+createCommentaryRoute :: Route
+createCommentaryRoute =
+  PathRoute "api"
+    $ PathRoute "posts"
+    $ DynamicRoute "id"
+    $ PathRoute "comments"
+    $ MethodRoute "POST"
+
+getCommentariesListRoute :: Route
+getCommentariesListRoute =
+  PathRoute "api"
+    $ PathRoute "posts"
+    $ DynamicRoute "id"
+    $ PathRoute "comments"
+    $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
@@ -101,6 +117,8 @@ routes =
   , ( publishNewsRoute
     , checkPermission (Owner isAuthorOfNews) publishNewsHandler
     )
+  , (createCommentaryRoute   , createCommentaryHandler)
+  , (getCommentariesListRoute, listCommentariesHandler)
   , ( MethodRoute "GET"
     , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )

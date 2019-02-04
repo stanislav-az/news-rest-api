@@ -12,10 +12,12 @@ import           Serializer.Author
 import           Serializer.Tag
 import           Serializer.Category
 import           Serializer.News
+import           Serializer.Commentary
 import           Database.Queries.Author
 import           Database.Queries.Tag
 import           Database.Queries.Category
 import           Database.Queries.News
+import           Database.Queries.Commentary
 import           Helpers
 import           WebServer.MonadHandler
 import           WebServer.Pagination
@@ -48,6 +50,10 @@ reportParseError :: String -> Response
 reportParseError err = responseLBS HTTP.status400
                                    [("Content-Type", "plain/text")]
                                    ("Parse error: " <> BC.pack err)
+
+notFoundResponse :: (Applicative m) => m Response
+notFoundResponse =
+  pure $ responseLBS HTTP.status404 [("Content-Type", "plain/text")] "Not Found"
 
 list :: (Persistent a, ToJSON b) => (a -> b) -> Handler
 list entityToResponse = do
@@ -167,3 +173,46 @@ publishNewsHandler = do
   pure $ responseLBS HTTP.status200
                      [("Content-Type", "application/json")]
                      newsJSON
+
+listCommentariesHandler :: Handler
+listCommentariesHandler = do
+  conn     <- asks hConnection
+  conf     <- asks hConfig
+  req      <- asks hRequest
+  dpMap    <- asks hDynamicPathsMap
+  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  let pagination = getLimitOffset maxLimit req
+      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
+  commentaries <- liftIO $ selectCommentariesByNewsId conn pagination newsId
+  let responseCommentaries  = commentaryToResponse <$> commentaries
+      printableCommentaries = encode responseCommentaries
+  pure $ responseLBS HTTP.status200
+                     [("Content-Type", "application/json")]
+                     printableCommentaries
+
+createCommentaryHandler :: Handler
+createCommentaryHandler = do
+  req   <- asks hRequest
+  conn  <- asks hConnection
+  dpMap <- asks hDynamicPathsMap
+  body  <- liftIO $ requestBody req
+  let createCommentaryData = eitherDecode $ LB.fromStrict body
+      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
+  liftIO $ either (pure . reportParseError)
+                  (createCommentary conn newsId)
+                  createCommentaryData
+ where
+  createCommentary conn newsId commentaryData = do
+    mbCommentary <- insertCommentary conn
+                                     newsId
+                                     (requestToCommentary commentaryData)
+    maybe (putStrLn "No posted news with such id" >> notFoundResponse)
+          commentaryPostedResponse
+          mbCommentary
+  commentaryPostedResponse commentary = do
+    let commentaryJSON = encode $ commentaryToResponse commentary
+    pure $ responseLBS HTTP.status200
+                       [("Content-Type", "application/json")]
+                       commentaryJSON
