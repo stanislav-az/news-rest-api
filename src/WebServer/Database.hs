@@ -26,8 +26,14 @@ class Persistent entity where
   selectById conn id = listToMaybe <$> query conn dbQuery [id]
     where
       dbQuery = "SELECT * FROM " <> tableName (Proxy :: Proxy entity) <> " WHERE id = ? ;"
--- TO DO  
--- delete :: Connection -> Integer -> IO ()
+
+  delete :: Proxy entity -> Connection -> Integer -> IO Bool
+  delete _ conn id = checkAffectedRows <$> execute conn deleteQuery [id]
+      where
+        thisTable = tableName (Proxy :: Proxy entity)
+        checkAffectedRows 0 = False
+        checkAffectedRows _ = True
+        deleteQuery = "DELETE FROM " <> thisTable <> " WHERE id = ? ;"
 
 class (Persistent stored) => Fit object stored where
   insert :: Connection -> object -> IO (Maybe stored)

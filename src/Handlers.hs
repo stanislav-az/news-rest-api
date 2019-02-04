@@ -8,6 +8,7 @@ import qualified Network.HTTP.Types            as HTTP
 import qualified Data.ByteString.Lazy          as LB
 import qualified Data.ByteString.Lazy.Char8    as BC
 import           Data.Aeson
+import           Data.Proxy
 import           Serializer.Author
 import           Serializer.Tag
 import           Serializer.Category
@@ -55,6 +56,9 @@ notFoundResponse :: (Applicative m) => m Response
 notFoundResponse =
   pure $ responseLBS HTTP.status404 [("Content-Type", "plain/text")] "Not Found"
 
+okResponse :: (Applicative m) => m Response
+okResponse = pure $ responseLBS HTTP.status204 [] ""
+
 list :: (Persistent a, ToJSON b) => (a -> b) -> Handler
 list entityToResponse = do
   conn     <- asks hConnection
@@ -68,6 +72,18 @@ list entityToResponse = do
   pure $ responseLBS HTTP.status200
                      [("Content-Type", "application/json")]
                      printableEntities
+
+remove :: (Persistent e) => Proxy e -> Handler
+remove this = do
+  dpMap <- asks hDynamicPathsMap
+  conn  <- asks hConnection
+  let entityId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
+        $ getIdFromUrl dpMap
+  if entityId == 0 -- id of admin user and default category
+    then notFoundResponse
+    else do
+      isOk <- liftIO $ delete this conn entityId
+      if isOk then okResponse else notFoundResponse
 
 updateAuthorHandler :: Handler
 updateAuthorHandler = do

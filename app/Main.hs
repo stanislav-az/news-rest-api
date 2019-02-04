@@ -6,7 +6,6 @@ import           Database.Migration
 
 ---- TO DO ----
 -- Exception management and logging (use handlers?)
--- Isolate common patterns in handlers
 -- Filtering, searching, sorting
 
 main :: IO ()
