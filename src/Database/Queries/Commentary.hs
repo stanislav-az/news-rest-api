@@ -7,7 +7,6 @@ import           Database.PostgreSQL.Simple
 import           Database.Models.News
 import           Database.Models.Commentary
 import           WebServer.Database
-import           WebServer.Pagination
 import           Data.Maybe                     ( listToMaybe )
 
 selectCommentariesByNewsId

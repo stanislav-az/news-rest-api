@@ -13,7 +13,6 @@ import           Data.Text
 import           Data.Time
 import           Data.Functor.Identity
 import           WebServer.Database
-import           WebServer.Pagination
 import           Database.Models.Category
 import           Database.Models.User
 import           Database.Models.Author

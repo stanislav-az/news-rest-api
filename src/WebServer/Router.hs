@@ -9,7 +9,7 @@ import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
 import           Network.HTTP.Types
-import           WebServer.MonadHandler
+import           WebServer.HandlerMonad
 import           Control.Exception              ( bracket )
 
 data Route = PathRoute T.Text Route | DynamicRoute T.Text Route | MethodRoute BS.ByteString

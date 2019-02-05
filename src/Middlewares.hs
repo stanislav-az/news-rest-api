@@ -2,7 +2,7 @@
 
 module Middlewares where
 
-import           WebServer.MonadHandler
+import           WebServer.HandlerMonad
 import           WebServer.Database
 import           Control.Monad.Reader
 import qualified Database.PostgreSQL.Simple    as PSQL

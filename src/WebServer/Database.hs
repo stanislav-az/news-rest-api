@@ -4,7 +4,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module WebServer.Database where
+module WebServer.Database (Limit(..), Offset(..), Persistent(..), Fit(..)) where
 
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.ToRow

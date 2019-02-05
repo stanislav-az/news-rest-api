@@ -33,6 +33,7 @@ dependencies:
 - bytestring
 - configurator
 - mtl
+- simple-logger
 
 library:
   source-dirs: src
@@ -47,6 +48,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - news-rest-api
+    default-extensions:
+    - OverloadedStrings
 
 tests:
   news-rest-api-test:

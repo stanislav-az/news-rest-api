@@ -8,7 +8,6 @@ import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.FromRow
 import           Data.Text
 import           WebServer.Database
-import           WebServer.Pagination
 import           Database.Queries.Queries
 import           Data.Maybe                     ( listToMaybe )
 import           Data.String

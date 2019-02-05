@@ -1,7 +1,6 @@
 .stack-work/
 news-rest-api.cabal
 *~
-src/WebServer/ClassHandler.hs
 
 # Other #
 #########

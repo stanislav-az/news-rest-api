@@ -13,7 +13,6 @@ import           Data.Text
 import           Database.Models.User
 import           Database.Queries.Queries
 import           WebServer.Database
-import           WebServer.Pagination
 
 data Author = Author {
   authorId :: Integer,

@@ -7,7 +7,7 @@ import           Network.HTTP.Types
 import           Handlers
 import           Middlewares
 import           Database.Queries.News
-import           WebServer.MonadHandler
+import           WebServer.HandlerMonad
 import           Database.Models.Author
 import           Database.Models.News
 import           Database.Models.Category
