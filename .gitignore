@@ -1,6 +1,7 @@
 .stack-work/
 news-rest-api.cabal
 *~
+src/WebServer/ClassHandler.hs
 
 # Other #
 #########
@@ -31,11 +32,9 @@ news-rest-api.cabal
 *.tar
 *.zip
 
-# Logs and databases #
-######################
+# Logs #
+########
 *.log
-*.sql
-*.sqlite
 
 # OS generated files #
 ######################

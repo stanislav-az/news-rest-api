@@ -37,12 +37,12 @@ CREATE TABLE news(
     id serial PRIMARY KEY,
     title text NOT NULL,
     date_created timestamp DEFAULT current_timestamp,
-    author_id integer,
-    category_id integer DEFAULT 1,
+    author_id integer DEFAULT 0,
+    category_id integer DEFAULT 0,
     content text,
     main_photo text,
     is_draft boolean DEFAULT true,
-    FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE SET NULL,
+    FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE SET DEFAULT,
     FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET DEFAULT
 );
 
