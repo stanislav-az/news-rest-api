@@ -9,8 +9,10 @@ import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
 import           Network.HTTP.Types
+import           WebServer.HandlerClass
 import           WebServer.HandlerMonad
 import           Control.Exception              ( bracket )
+import           Control.Monad.Except
 
 data Route = PathRoute T.Text Route | DynamicRoute T.Text Route | MethodRoute BS.ByteString
 
@@ -33,20 +35,19 @@ checkout dpMap (DynamicRoute s route) (x : xs) method =
   checkout ((s, x) : dpMap) route xs method
 
 route :: [(Route, Handler)] -> Request -> IO Response
-route [] req = pure notFoundResponse
-route (h : hs) req
-  | isCorrect = do
-    conf <- C.loadConfig
-    bracket (DC.connect conf) PSQL.close
-      $ \conn -> runHandler conf dpMap req conn handler
-  | otherwise = route hs req
+route [] req = notFoundResponse
+route (h : hs) req | isCorrect = runHAndCatchE
+                   | otherwise = route hs req
  where
   (isCorrect, dpMap) = checkout [] currentRoute path method
   currentRoute       = fst h
   handler            = snd h
   path               = pathInfo req
   method             = requestMethod req
+  runHAndCatchE      = do
+    conf <- C.loadConfig
+    res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
+      runHandler conf dpMap req conn $ catchError handler manageHandlerException
+    either (\e -> logError e >> serverErrorResponse) pure res
 
-notFoundResponse :: Response
-notFoundResponse =
-  responseLBS status404 [("Content-Type", "text/html")] "Not found"
+manageHandlerException e = notFoundResponse

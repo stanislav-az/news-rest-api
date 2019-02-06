@@ -23,11 +23,11 @@ instance MonadDatabase IO where
   insert     = D.insert
 
 class (Monad m) => MonadHTTP m where
-  getRequestBody :: W.Request -> m B.ByteString
+  getRequestBody :: W.Request -> m BC.ByteString
   respond :: HTTP.Status -> HTTP.ResponseHeaders -> BC.ByteString -> m W.Response
 
 instance MonadHTTP IO where
-  getRequestBody = W.requestBody
+  getRequestBody = W.strictRequestBody
   respond s h b = pure $ W.responseLBS s h b
 
 class (Monad m) => MonadLogger m where

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module WebServer.HandlerMonad where
@@ -5,7 +6,9 @@ module WebServer.HandlerMonad where
 import qualified Config                        as C
 import qualified Database.PostgreSQL.Simple    as PSQL
 import qualified Data.Text                     as T
+import qualified Network.HTTP.Types            as HTTP
 import           Control.Monad.Reader
+import           Control.Monad.Except
 import           Control.Monad.IO.Class
 import           Network.Wai
 import           WebServer.HandlerClass
@@ -22,8 +25,10 @@ data HandlerEnv = HandlerEnv {
     hConnection :: PSQL.Connection
 }
 
-newtype HandlerMonad a = HandlerMonad {runHandlerMonad :: ReaderT HandlerEnv IO a}
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader HandlerEnv)
+type HandlerException = T.Text
+
+newtype HandlerMonad a = HandlerMonad {runHandlerMonad :: ReaderT HandlerEnv (ExceptT HandlerException IO) a}
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader HandlerEnv, MonadError HandlerException)
 
 runHandler
   :: C.Config
@@ -31,8 +36,9 @@ runHandler
   -> Request
   -> PSQL.Connection
   -> HandlerMonad a
-  -> IO a
-runHandler conf dpMap req conn = (`runReaderT` env) . runHandlerMonad
+  -> IO (Either HandlerException a)
+runHandler conf dpMap req conn =
+  runExceptT . (`runReaderT` env) . runHandlerMonad
  where
   env = HandlerEnv { hConfig          = conf
                    , hDynamicPathsMap = dpMap
@@ -55,3 +61,23 @@ instance MonadLogger HandlerMonad where
   logInfo  = liftIO . logInfo
   logWarn  = liftIO . logWarn
   logError = liftIO . logError
+
+notFoundResponse :: (MonadHTTP m) => m Response
+notFoundResponse =
+  respond HTTP.status404 [("Content-Type", "plain/text")] "Not Found"
+
+okResponse :: (MonadHTTP m) => m Response
+okResponse = respond HTTP.status204 [] ""
+
+serverErrorResponse :: (MonadHTTP m) => m Response
+serverErrorResponse = respond HTTP.status500 [] ""
+
+-- type TestT = ExceptT String (ReaderT String IO) Int
+-- let x = pure 1 :: TestT
+-- runExceptT x :: ReaderT String IO (Either String Int)
+-- (`runReaderT` "lol") $ runExceptT x :: IO (Either String Int)
+
+-- type TestT = ReaderT String (ExceptT String IO) Int
+-- let x = pure 1 :: TestT
+-- (`runReaderT` "lol") x :: ExceptT String IO Int
+-- runExceptT $ (`runReaderT` "lol") x :: IO (Either String Int)

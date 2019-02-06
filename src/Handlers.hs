@@ -37,7 +37,7 @@ create requestToEntity entityToResponse = do
   req  <- asks hRequest
   conn <- asks hConnection
   body <- getRequestBody req
-  let createEntityData = eitherDecode $ LB.fromStrict body
+  let createEntityData = eitherDecode body
   either reportParseError (createEntity conn) createEntityData
  where
   createEntity conn entityData = do
@@ -51,13 +51,6 @@ reportParseError err = respond HTTP.status400
                                [("Content-Type", "plain/text")]
                                ("Parse error: " <> BC.pack err)
 
-notFoundResponse :: (MonadHTTP m) => m Response
-notFoundResponse =
-  respond HTTP.status404 [("Content-Type", "plain/text")] "Not Found"
-
-okResponse :: (MonadHTTP m) => m Response
-okResponse = respond HTTP.status204 [] ""
-
 list :: (D.Persistent a, ToJSON b) => (a -> b) -> Handler
 list entityToResponse = do
   conn     <- asks hConnection
@@ -69,8 +62,8 @@ list entityToResponse = do
   let responseEntities  = entityToResponse <$> entities
       printableEntities = encode responseEntities
   respond HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableEntities
+          [("Content-Type", "application/json")]
+          printableEntities
 
 remove :: (D.Persistent e) => Proxy e -> Handler
 remove this = do
@@ -89,8 +82,7 @@ updateAuthorHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateAuthorData =
-        eitherDecode $ LB.fromStrict body
+  let updateAuthorData = eitherDecode body
       authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection
@@ -100,17 +92,14 @@ updateAuthorHandler = do
     let partial = requestToUpdateAuthor authorData
     author <- liftIO $ updateAuthor conn authorId partial
     let authorJSON = encode $ authorToUpdateResponse author
-    respond HTTP.status200
-                       [("Content-Type", "application/json")]
-                       authorJSON
+    respond HTTP.status200 [("Content-Type", "application/json")] authorJSON
 
 updateTagHandler :: Handler
 updateTagHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateTagData =
-        eitherDecode $ LB.fromStrict body :: Either String UpdateTagRequest
+  let updateTagData = eitherDecode body :: Either String UpdateTagRequest
       tagId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection
@@ -121,9 +110,7 @@ updateTagHandler = do
     let partial = requestToUpdateTag tagData
     tag <- updateTag conn tagId partial
     let tagJSON = encode $ tagToResponse tag
-    respond HTTP.status200
-                       [("Content-Type", "application/json")]
-                       tagJSON
+    respond HTTP.status200 [("Content-Type", "application/json")] tagJSON
 
 updateCategoryHandler :: Handler
 updateCategoryHandler = do
@@ -132,7 +119,7 @@ updateCategoryHandler = do
   body  <- getRequestBody req
   let
     updateCategoryData =
-      eitherDecode $ LB.fromStrict body :: Either String UpdateCategoryRequest
+      eitherDecode body :: Either String UpdateCategoryRequest
     categoryId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
       $ getIdFromUrl dpMap
   conn <- asks hConnection
@@ -144,17 +131,14 @@ updateCategoryHandler = do
     let partial = requestToUpdateCategory categoryData
     category <- updateCategory conn categoryId partial
     let categoryJSON = encode $ categoryNestedToResponse category
-    respond HTTP.status200
-                       [("Content-Type", "application/json")]
-                       categoryJSON
+    respond HTTP.status200 [("Content-Type", "application/json")] categoryJSON
 
 updateNewsHandler :: Handler
 updateNewsHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateNewsData =
-        eitherDecode $ LB.fromStrict body :: Either String UpdateNewsRequest
+  let updateNewsData = eitherDecode body :: Either String UpdateNewsRequest
       newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   conn <- asks hConnection
@@ -164,9 +148,7 @@ updateNewsHandler = do
     let partial = requestToUpdateNews newsData
     news <- updateNews conn newsId partial
     let newsJSON = encode $ newsToResponse news
-    respond HTTP.status200
-                       [("Content-Type", "application/json")]
-                       newsJSON
+    respond HTTP.status200 [("Content-Type", "application/json")] newsJSON
 
 publishNewsHandler :: Handler
 publishNewsHandler = do
@@ -178,9 +160,7 @@ publishNewsHandler = do
   conn <- asks hConnection
   news <- liftIO $ publishNews conn newsId
   let newsJSON = encode $ newsToResponse news
-  respond HTTP.status200
-                     [("Content-Type", "application/json")]
-                     newsJSON
+  respond HTTP.status200 [("Content-Type", "application/json")] newsJSON
 
 listCommentariesHandler :: Handler
 listCommentariesHandler = do
@@ -196,8 +176,8 @@ listCommentariesHandler = do
   let responseCommentaries  = commentaryToResponse <$> commentaries
       printableCommentaries = encode responseCommentaries
   respond HTTP.status200
-                     [("Content-Type", "application/json")]
-                     printableCommentaries
+          [("Content-Type", "application/json")]
+          printableCommentaries
 
 createCommentaryHandler :: Handler
 createCommentaryHandler = do
@@ -205,7 +185,7 @@ createCommentaryHandler = do
   conn  <- asks hConnection
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let createCommentaryData = eitherDecode $ LB.fromStrict body
+  let createCommentaryData = eitherDecode body
       newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
         $ getIdFromUrl dpMap
   liftIO $ either reportParseError
@@ -221,6 +201,4 @@ createCommentaryHandler = do
           mbCommentary
   commentaryPostedResponse commentary = do
     let commentaryJSON = encode $ commentaryToResponse commentary
-    respond HTTP.status200
-                       [("Content-Type", "application/json")]
-                       commentaryJSON
+    respond HTTP.status200 [("Content-Type", "application/json")] commentaryJSON
