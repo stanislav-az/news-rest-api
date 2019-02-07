@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Handlers where
 
@@ -7,6 +8,7 @@ import qualified Database.PostgreSQL.Simple    as PSQL
 import qualified Network.HTTP.Types            as HTTP
 import qualified Data.ByteString.Lazy          as LB
 import qualified Data.ByteString.Lazy.Char8    as BC
+import qualified Control.Exception             as E
 import           Data.Aeson
 import           Data.Proxy
 import           Serializer.Author
@@ -22,10 +24,12 @@ import           Database.Queries.Commentary
 import           Helpers
 import           WebServer.HandlerMonad
 import           WebServer.HandlerClass
+import           WebServer.Error
 import qualified WebServer.Database            as D
 import           WebServer.Pagination
 import qualified Config                        as C
 import           Control.Monad.Reader
+import           Control.Monad.Except
 import           Data.Maybe                     ( fromMaybe )
 
 getIdFromUrl :: DynamicPathsMap -> Either String Integer
@@ -38,12 +42,12 @@ create requestToEntity entityToResponse = do
   conn <- asks hConnection
   body <- getRequestBody req
   let createEntityData = eitherDecode body
-  either reportParseError (createEntity conn) createEntityData
+  either (throwError . ParseError) (createEntity conn) createEntityData
  where
   createEntity conn entityData = do
-    mbEntity <- insert conn (requestToEntity entityData)
-    let entity     = fromMaybe (error "Could not insert entity") mbEntity
-        entityJSON = encode $ entityToResponse entity
+    eEntity <- insert conn (requestToEntity entityData)
+    entity  <- either (throwError . PSQLError) pure eEntity
+    let entityJSON = encode $ entityToResponse entity
     respond HTTP.status200 [("Content-Type", "application/json")] entityJSON
 
 reportParseError :: (MonadHTTP m) => String -> m Response
@@ -58,7 +62,8 @@ list entityToResponse = do
   req      <- asks hRequest
   maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
   let pagination = getLimitOffset maxLimit req
-  entities <- select conn pagination
+  eEntities <- select conn pagination
+  entities  <- either (throwError . PSQLError) pure eEntities
   let responseEntities  = entityToResponse <$> entities
       printableEntities = encode responseEntities
   respond HTTP.status200
@@ -67,15 +72,19 @@ list entityToResponse = do
 
 remove :: (D.Persistent e) => Proxy e -> Handler
 remove this = do
-  dpMap <- asks hDynamicPathsMap
-  conn  <- asks hConnection
-  let entityId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  if entityId == 0 -- id of admin user and default category
-    then notFoundResponse
+  dpMap    <- asks hDynamicPathsMap
+  conn     <- asks hConnection
+  entityId <-
+    either
+        (\e -> throwError $ ParseError $ "Could not parse dynamic url: " ++ e)
+        pure
+      $ getIdFromUrl dpMap
+  if entityId == 0
+    then throwError Forbidden
     else do
-      isOk <- delete this conn entityId
-      if isOk then okResponse else notFoundResponse
+      res <- delete this conn entityId
+      either (throwError . PSQLError) pure res
+      okResponse
 
 updateAuthorHandler :: Handler
 updateAuthorHandler = do

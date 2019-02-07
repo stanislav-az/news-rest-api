@@ -7,6 +7,7 @@ import qualified Data.ByteString               as BS
 import qualified Config                        as C
 import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
+import           WebServer.Error
 import           Network.Wai
 import           Network.HTTP.Types
 import           WebServer.HandlerClass
@@ -34,9 +35,13 @@ checkout dpMap (PathRoute s route) (x : xs) method
 checkout dpMap (DynamicRoute s route) (x : xs) method =
   checkout ((s, x) : dpMap) route xs method
 
-route :: [(Route, Handler)] -> Request -> IO Response
+route
+  :: (MonadHTTP m, MonadLogger m, MonadDatabase m)
+  => [(Route, Handler)]
+  -> Request
+  -> m Response
 route [] req = notFoundResponse
-route (h : hs) req | isCorrect = runHAndCatchE
+route (h : hs) req | isCorrect = liftIO runHAndCatchE
                    | otherwise = route hs req
  where
   (isCorrect, dpMap) = checkout [] currentRoute path method
@@ -47,7 +52,5 @@ route (h : hs) req | isCorrect = runHAndCatchE
   runHAndCatchE      = do
     conf <- C.loadConfig
     res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
-      runHandler conf dpMap req conn $ catchError handler manageHandlerException
-    either (\e -> logError e >> serverErrorResponse) pure res
-
-manageHandlerException e = notFoundResponse
+      runHandler conf dpMap req conn $ catchError handler manageHandlerError
+    either (\e -> (logError $ texifyE e) >> serverErrorResponse) pure res

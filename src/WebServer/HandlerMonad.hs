@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module WebServer.HandlerMonad where
 
+import qualified Control.Exception             as E
 import qualified Config                        as C
 import qualified Database.PostgreSQL.Simple    as PSQL
 import qualified Data.Text                     as T
@@ -25,10 +27,10 @@ data HandlerEnv = HandlerEnv {
     hConnection :: PSQL.Connection
 }
 
-type HandlerException = T.Text
+data HandlerError = PSQLError String | ParseError String | Forbidden deriving (Show)
 
-newtype HandlerMonad a = HandlerMonad {runHandlerMonad :: ReaderT HandlerEnv (ExceptT HandlerException IO) a}
-  deriving (Functor, Applicative, Monad, MonadIO, MonadReader HandlerEnv, MonadError HandlerException)
+newtype HandlerMonad a = HandlerMonad {runHandlerMonad :: ReaderT HandlerEnv (ExceptT HandlerError IO) a}
+  deriving (Functor, Applicative, Monad, MonadIO, MonadReader HandlerEnv, MonadError HandlerError)
 
 runHandler
   :: C.Config
@@ -36,7 +38,7 @@ runHandler
   -> Request
   -> PSQL.Connection
   -> HandlerMonad a
-  -> IO (Either HandlerException a)
+  -> IO (Either HandlerError a)
 runHandler conf dpMap req conn =
   runExceptT . (`runReaderT` env) . runHandlerMonad
  where
@@ -47,6 +49,7 @@ runHandler conf dpMap req conn =
                    }
 
 instance MonadDatabase HandlerMonad where
+  type Gateway HandlerMonad = PSQL.Connection
   select c p = liftIO $ select c p
   selectById c i = liftIO $ selectById c i
   delete p c i = liftIO $ delete p c i
@@ -63,14 +66,20 @@ instance MonadLogger HandlerMonad where
   logError = liftIO . logError
 
 notFoundResponse :: (MonadHTTP m) => m Response
-notFoundResponse =
-  respond HTTP.status404 [("Content-Type", "plain/text")] "Not Found"
+notFoundResponse = respond HTTP.status404 [] ""
 
 okResponse :: (MonadHTTP m) => m Response
 okResponse = respond HTTP.status204 [] ""
 
 serverErrorResponse :: (MonadHTTP m) => m Response
 serverErrorResponse = respond HTTP.status500 [] ""
+
+badRequestResponse :: (MonadHTTP m) => m Response
+badRequestResponse = respond HTTP.status400 [] ""
+
+-- The request was well-formed but was unable to be followed due to semantic errors.
+unprocessableEntityResponse :: (MonadHTTP m) => m Response
+unprocessableEntityResponse = respond HTTP.status422 [] ""
 
 -- type TestT = ExceptT String (ReaderT String IO) Int
 -- let x = pure 1 :: TestT
