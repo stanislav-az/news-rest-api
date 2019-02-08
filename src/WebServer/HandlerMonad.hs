@@ -9,6 +9,7 @@ import qualified Config                        as C
 import qualified Database.PostgreSQL.Simple    as PSQL
 import qualified Data.Text                     as T
 import qualified Network.HTTP.Types            as HTTP
+import qualified Data.ByteString.Lazy.Char8    as BC
 import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Control.Monad.IO.Class
@@ -71,6 +72,9 @@ notFoundResponse = respond HTTP.status404 [] ""
 okResponse :: (MonadHTTP m) => m Response
 okResponse = respond HTTP.status204 [] ""
 
+okResponseWithJSONBody :: (MonadHTTP m) => BC.ByteString -> m Response
+okResponseWithJSONBody = respond HTTP.status200 []
+
 serverErrorResponse :: (MonadHTTP m) => m Response
 serverErrorResponse = respond HTTP.status500 [] ""
 
@@ -80,13 +84,3 @@ badRequestResponse = respond HTTP.status400 [] ""
 -- The request was well-formed but was unable to be followed due to semantic errors.
 unprocessableEntityResponse :: (MonadHTTP m) => m Response
 unprocessableEntityResponse = respond HTTP.status422 [] ""
-
--- type TestT = ExceptT String (ReaderT String IO) Int
--- let x = pure 1 :: TestT
--- runExceptT x :: ReaderT String IO (Either String Int)
--- (`runReaderT` "lol") $ runExceptT x :: IO (Either String Int)
-
--- type TestT = ReaderT String (ExceptT String IO) Int
--- let x = pure 1 :: TestT
--- (`runReaderT` "lol") x :: ExceptT String IO Int
--- runExceptT $ (`runReaderT` "lol") x :: IO (Either String Int)

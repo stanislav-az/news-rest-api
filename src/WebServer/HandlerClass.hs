@@ -61,10 +61,3 @@ instance MonadLogger IO where
   logInfo  = L.logInfo
   logWarn  = L.logWarn
   logError = L.logError
-
--- class EnvReader m where == Reader
---   getEnv :: m e
-
--- class MonadError m where == Except
---   catchE 
---   throwE

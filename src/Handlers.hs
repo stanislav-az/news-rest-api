@@ -48,12 +48,7 @@ create requestToEntity entityToResponse = do
     eEntity <- insert conn (requestToEntity entityData)
     entity  <- either (throwError . PSQLError) pure eEntity
     let entityJSON = encode $ entityToResponse entity
-    respond HTTP.status200 [("Content-Type", "application/json")] entityJSON
-
-reportParseError :: (MonadHTTP m) => String -> m Response
-reportParseError err = respond HTTP.status400
-                               [("Content-Type", "plain/text")]
-                               ("Parse error: " <> BC.pack err)
+    okResponseWithJSONBody entityJSON
 
 list :: (D.Persistent a, ToJSON b) => (a -> b) -> Handler
 list entityToResponse = do
@@ -66,19 +61,13 @@ list entityToResponse = do
   entities  <- either (throwError . PSQLError) pure eEntities
   let responseEntities  = entityToResponse <$> entities
       printableEntities = encode responseEntities
-  respond HTTP.status200
-          [("Content-Type", "application/json")]
-          printableEntities
+  okResponseWithJSONBody printableEntities
 
 remove :: (D.Persistent e) => Proxy e -> Handler
 remove this = do
   dpMap    <- asks hDynamicPathsMap
   conn     <- asks hConnection
-  entityId <-
-    either
-        (\e -> throwError $ ParseError $ "Could not parse dynamic url: " ++ e)
-        pure
-      $ getIdFromUrl dpMap
+  entityId <- either throwParseError pure $ getIdFromUrl dpMap
   if entityId == 0
     then throwError Forbidden
     else do
@@ -92,84 +81,83 @@ updateAuthorHandler = do
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
   let updateAuthorData = eitherDecode body
-      authorId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  either reportParseError (goUpdateAuthor conn authorId) updateAuthorData
+  authorId <- either throwParseError pure $ getIdFromUrl dpMap
+  conn     <- asks hConnection
+  either (throwError . ParseError)
+         (goUpdateAuthor conn authorId)
+         updateAuthorData
  where
   goUpdateAuthor conn authorId authorData = do
     let partial = requestToUpdateAuthor authorData
-    author <- liftIO $ updateAuthor conn authorId partial
+    eAuthor <- liftIO $ E.try $ updateAuthor conn authorId partial
+    author  <- either throwPSQLError pure eAuthor
     let authorJSON = encode $ authorToUpdateResponse author
-    respond HTTP.status200 [("Content-Type", "application/json")] authorJSON
+    okResponseWithJSONBody authorJSON
 
 updateTagHandler :: Handler
 updateTagHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateTagData = eitherDecode body :: Either String UpdateTagRequest
-      tagId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  liftIO $ either reportParseError (goUpdateTag conn tagId) updateTagData
+  let updateTagData = eitherDecode body
+  tagId <- either throwParseError pure $ getIdFromUrl dpMap
+  conn  <- asks hConnection
+  either (throwError . ParseError) (goUpdateTag conn tagId) updateTagData
  where
-  goUpdateTag :: PSQL.Connection -> Integer -> UpdateTagRequest -> IO Response
   goUpdateTag conn tagId tagData = do
     let partial = requestToUpdateTag tagData
-    tag <- updateTag conn tagId partial
+    eTag <- liftIO $ E.try $ updateTag conn tagId partial
+    tag  <- either throwPSQLError pure eTag
     let tagJSON = encode $ tagToResponse tag
-    respond HTTP.status200 [("Content-Type", "application/json")] tagJSON
+    okResponseWithJSONBody tagJSON
 
 updateCategoryHandler :: Handler
 updateCategoryHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let
-    updateCategoryData =
-      eitherDecode body :: Either String UpdateCategoryRequest
-    categoryId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-      $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  liftIO $ either reportParseError
-                  (goUpdateCategory conn categoryId)
-                  updateCategoryData
+  let updateCategoryData = eitherDecode body
+  categoryId <- either throwParseError pure $ getIdFromUrl dpMap
+  conn       <- asks hConnection
+  either (throwError . ParseError)
+         (goUpdateCategory conn categoryId)
+         updateCategoryData
  where
   goUpdateCategory conn categoryId categoryData = do
     let partial = requestToUpdateCategory categoryData
-    category <- updateCategory conn categoryId partial
+    eCategory <- liftIO $ E.try $ updateCategory conn categoryId partial
+    category  <- either throwPSQLError pure eCategory
     let categoryJSON = encode $ categoryNestedToResponse category
-    respond HTTP.status200 [("Content-Type", "application/json")] categoryJSON
+    okResponseWithJSONBody categoryJSON
 
 updateNewsHandler :: Handler
 updateNewsHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateNewsData = eitherDecode body :: Either String UpdateNewsRequest
-      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  liftIO $ either reportParseError (goUpdateNews conn newsId) updateNewsData
+  let updateNewsData = eitherDecode body
+  newsId <- either throwParseError pure $ getIdFromUrl dpMap
+  conn   <- asks hConnection
+  either (throwError . ParseError) (goUpdateNews conn newsId) updateNewsData
  where
   goUpdateNews conn newsId newsData = do
     let partial = requestToUpdateNews newsData
-    news <- updateNews conn newsId partial
+    eNews <- liftIO $ E.try $ updateNews conn newsId partial
+    news  <- either throwPSQLError pure eNews
     let newsJSON = encode $ newsToResponse news
-    respond HTTP.status200 [("Content-Type", "application/json")] newsJSON
+    okResponseWithJSONBody newsJSON
 
 publishNewsHandler :: Handler
 publishNewsHandler = do
-  req   <- asks hRequest
-  dpMap <- asks hDynamicPathsMap
-  body  <- getRequestBody req
-  let newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  conn <- asks hConnection
-  news <- liftIO $ publishNews conn newsId
+  req    <- asks hRequest
+  dpMap  <- asks hDynamicPathsMap
+  body   <- getRequestBody req
+  newsId <- either throwParseError pure $ getIdFromUrl dpMap
+  conn   <- asks hConnection
+  eNews  <- liftIO $ E.try $ publishNews conn newsId
+  news   <- either throwPSQLError pure eNews
   let newsJSON = encode $ newsToResponse news
-  respond HTTP.status200 [("Content-Type", "application/json")] newsJSON
+  okResponseWithJSONBody newsJSON
 
 listCommentariesHandler :: Handler
 listCommentariesHandler = do
@@ -179,14 +167,14 @@ listCommentariesHandler = do
   dpMap    <- asks hDynamicPathsMap
   maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
   let pagination = getLimitOffset maxLimit req
-      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  commentaries <- liftIO $ selectCommentariesByNewsId conn pagination newsId
+  newsId        <- either throwParseError pure $ getIdFromUrl dpMap
+  eCommentaries <- liftIO $ E.try $ selectCommentariesByNewsId conn
+                                                               pagination
+                                                               newsId
+  commentaries <- either throwPSQLError pure eCommentaries
   let responseCommentaries  = commentaryToResponse <$> commentaries
       printableCommentaries = encode responseCommentaries
-  respond HTTP.status200
-          [("Content-Type", "application/json")]
-          printableCommentaries
+  okResponseWithJSONBody printableCommentaries
 
 createCommentaryHandler :: Handler
 createCommentaryHandler = do
@@ -195,19 +183,16 @@ createCommentaryHandler = do
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
   let createCommentaryData = eitherDecode body
-      newsId = either (\e -> error $ "Could not parse dynamic url: " ++ e) id
-        $ getIdFromUrl dpMap
-  liftIO $ either reportParseError
-                  (createCommentary conn newsId)
-                  createCommentaryData
+  newsId <- either throwParseError pure $ getIdFromUrl dpMap
+  either (throwError . ParseError)
+         (createCommentary conn newsId)
+         createCommentaryData
  where
   createCommentary conn newsId commentaryData = do
-    mbCommentary <- insertCommentary conn
-                                     newsId
-                                     (requestToCommentary commentaryData)
-    maybe (putStrLn "No posted news with such id" >> notFoundResponse)
-          commentaryPostedResponse
-          mbCommentary
-  commentaryPostedResponse commentary = do
+    eCommentary <- liftIO $ withPSQLException $ insertCommentary
+      conn
+      newsId
+      (requestToCommentary commentaryData)
+    commentary <- either (throwError . PSQLError) pure $ join eCommentary
     let commentaryJSON = encode $ commentaryToResponse commentary
-    respond HTTP.status200 [("Content-Type", "application/json")] commentaryJSON
+    okResponseWithJSONBody commentaryJSON

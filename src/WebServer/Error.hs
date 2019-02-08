@@ -1,11 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module WebServer.Error
-  ( texifyE
-  , manageHandlerError
-  )
-where
+module WebServer.Error where
 
 import           WebServer.HandlerMonad
 import           WebServer.HandlerClass
@@ -23,11 +19,19 @@ manageHandlerError e@Forbidden =
 manageHandlerError e@(PSQLError _) =
   logError (texifyE e) >> unprocessableEntityResponse
 
-withPSQLException :: IO a -> HandlerMonad a
-withPSQLException io = liftIO (E.try io) >>= either rethrow pure
+withPSQLException :: IO a -> IO (Either String a)
+withPSQLException io = E.try io >>= either left right
  where
-  rethrow :: E.SomeException -> HandlerMonad a
-  rethrow = throwError . PSQLError . show
+  left :: E.SomeException -> IO (Either String a)
+  left  = pure . Left . show
+  right = pure . Right
 
 texifyE :: HandlerError -> T.Text
 texifyE = T.pack . show
+
+throwParseError :: MonadError HandlerError m => [Char] -> m a
+throwParseError err =
+  throwError $ ParseError $ "Could not parse dynamic url: " ++ err
+
+throwPSQLError :: MonadError HandlerError m => E.SomeException -> m a
+throwPSQLError err = throwError $ PSQLError $ show (err :: E.SomeException)
