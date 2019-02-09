@@ -46,11 +46,7 @@ instance FromRow News where
 instance Persistent News where
   tableName _ = "news"
 
-  select conn (Limit limit, Offset offset) = query conn dbQuery [limit, offset]
-    where
-      dbQuery = "SELECT * FROM news \
-                \WHERE is_draft = false \
-                \LIMIT ? OFFSET ? ;"
+  select = error "Use selectNews"
 
 instance Fit NewsRaw News where
 
@@ -63,13 +59,14 @@ data NewsNested = NewsNested {
   newsNestedIsDraft :: Bool,
   newsNestedAuthorAndUser :: (Author,User),
   newsNestedCategory :: CategoryNested,
-  newsNestedTags :: [Tag]
+  newsNestedTags :: [Tag],
+  newsNestedPhotos :: [Photo]
 }
 
 instance Persistent NewsNested where
   tableName _ = error "No table for NewsNested"
 
-  select conn pagination = select conn pagination >>= (mapM (nestNews conn))
+  select = error "Use selectNewsNested"
 
   selectById conn newsId = selectById conn newsId >>= (maybeNestNews conn)
 
@@ -78,8 +75,11 @@ instance Fit NewsRaw NewsNested where
     (Just news) <- insert conn newsRaw
     let thisNewsId = newsId news
         tagIds     = runIdentity newsRawTagsIds
+        photoUrls  = runIdentity newsRawPhotos
     forM_ tagIds
       $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
+    forM_ photoUrls
+      $ \photo -> execute conn insertPhotoQuery (photo, thisNewsId)
     Just <$> nestNews conn news
 
 data NewsRawT f = NewsRawT {
@@ -88,7 +88,8 @@ data NewsRawT f = NewsRawT {
   newsRawCategoryId :: f Integer,
   newsRawContent :: f Text,
   newsRawMainPhoto :: f Text,
-  newsRawTagsIds :: f [Integer]
+  newsRawTagsIds :: f [Integer],
+  newsRawPhotos :: f [Text]
 }
 
 newtype NewsRaw = NewsRaw (NewsRawT Identity)
@@ -125,6 +126,15 @@ instance FromRow TagNews where
 
 -- instance Fit TagNews TagNews where
 
+data Photo = Photo {
+  photoId :: Integer,
+  photoUrl :: Text,
+  photoNewsId :: Integer
+}
+
+instance FromRow Photo where
+  fromRow = Photo <$> field <*> field <*> field
+
 maybeNestNews :: Connection -> Maybe News -> IO (Maybe NewsNested)
 maybeNestNews conn = maybe (pure Nothing) (fmap Just . nestNews conn)
 
@@ -133,6 +143,7 @@ nestNews conn News {..} = do
   (Just category     ) <- selectById conn newsCategoryId -- Pattern matching to Just because db constraints let us to do it
   (Just authorAndUser) <- selectById conn newsAuthorId
   tags                 <- getTagsByNewsId conn newsId
+  photos               <- getPhotosByNewsId conn newsId
   pure $ NewsNested { newsNestedId            = newsId
                     , newsNestedTitle         = newsTitle
                     , newsNestedDateCreated   = newsDateCreated
@@ -142,9 +153,20 @@ nestNews conn News {..} = do
                     , newsNestedAuthorAndUser = authorAndUser
                     , newsNestedCategory      = category
                     , newsNestedTags          = tags
+                    , newsNestedPhotos        = photos
                     }
 
 insertTagsNewsQuery :: Query
 insertTagsNewsQuery =
   "INSERT INTO tags_news(tag_id, news_id) \
   \ VALUES (?,?) "
+
+insertPhotoQuery :: Query
+insertPhotoQuery =
+  "INSERT INTO photos(id, url, news_id) \
+  \ VALUES (default,?,?) "
+
+getPhotosByNewsId :: Connection -> Integer -> IO [Photo]
+getPhotosByNewsId conn newsId = query conn dbQuery (Only newsId)
+  where dbQuery = "SELECT * FROM photos \
+        \WHERE news_id = ?"

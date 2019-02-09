@@ -22,6 +22,7 @@ instance FromJSON CreateNewsRequest where
       <*> (Identity <$> (v .: "content"))
       <*> (Identity <$> (v .: "main_photo"))
       <*> (Identity <$> (v .: "tags"))
+      <*> (Identity <$> (v .: "photos"))
 
 newtype UpdateNewsRequest = UpdateNewsRequest (NewsRawT Maybe)
 
@@ -41,6 +42,8 @@ instance FromJSON UpdateNewsRequest where
       .:? "main_photo"
       <*> v
       .:? "tags"
+      <*> v
+      .:? "photos"
 
 newtype CreateNewsResponse = CreateNewsResponse NewsNested
 
@@ -55,7 +58,14 @@ instance ToJSON CreateNewsResponse where
     , "author" .= toJSON (authorToResponse newsNestedAuthorAndUser)
     , "category" .= toJSON (CreateCategoryResponse newsNestedCategory)
     , "tags" .= toJSON (CreateTagResponse <$> newsNestedTags)
+    , "photos" .= toJSON (PhotoResponse <$> newsNestedPhotos)
     ]
+
+newtype PhotoResponse = PhotoResponse Photo
+
+instance ToJSON PhotoResponse where
+  toJSON (PhotoResponse Photo {..}) =
+    object ["id" .= photoId, "url" .= photoUrl, "news_id" .= photoNewsId]
 
 requestToNews :: CreateNewsRequest -> NewsRaw
 requestToNews (CreateNewsRequest nrt) = NewsRaw nrt

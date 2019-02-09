@@ -9,6 +9,8 @@ import           Database.Models.News
 import           Database.Models.User
 import           Database.Queries.Queries
 import           Helpers
+import           WebServer.Database
+import           Data.Maybe                     ( listToMaybe )
 
 publishNews :: Connection -> Integer -> IO NewsNested
 publishNews conn newsId =
@@ -32,10 +34,21 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
           execute conn deleteTagsNewsQuery (Only updatingNewsId)
         makeNewTagConnections = forM_ tagIds
           $ \tagId -> execute conn insertTagsNewsQuery (tagId, updatingNewsId)
+    case newsRawPhotos of
+      Nothing     -> pure ()
+      Just photos -> deleteOldPhotos >> insertNewPhotos
+       where
+        deleteOldPhotos =
+          execute conn deleteOldPhotosQuery (Only updatingNewsId)
+        insertNewPhotos = forM_ photos
+          $ \photo -> execute conn insertPhotoQuery (photo, updatingNewsId)
     nestNews conn news
 
 deleteTagsNewsQuery :: Query
 deleteTagsNewsQuery = "DELETE FROM tags_news WHERE news_id = ?"
+
+deleteOldPhotosQuery :: Query
+deleteOldPhotosQuery = "DELETE FROM photos WHERE news_id = ?"
 
 updateNewsQuery :: NewsRawPartial -> Query
 updateNewsQuery (NewsRawPartial NewsRawT {..}) =
@@ -67,3 +80,16 @@ getAuthorUserByNewsId conn newsId = head <$> query conn q (Only newsId)
   \JOIN news n ON n.author_id = a.id \
   \WHERE n.id = ?"
 
+selectNews :: Connection -> (Limit, Offset) -> IO [News]
+selectNews conn (Limit limit, Offset offset) = query conn
+                                                     dbQuery
+                                                     [limit, offset]
+ where
+  dbQuery
+    = "SELECT * FROM news \
+              \WHERE is_draft = false \
+              \LIMIT ? OFFSET ? ;"
+
+selectNewsNested :: Connection -> (Limit, Offset) -> IO [NewsNested]
+selectNewsNested conn pagination =
+  selectNews conn pagination >>= (mapM (nestNews conn))

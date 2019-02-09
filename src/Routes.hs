@@ -145,7 +145,7 @@ routes =
     , checkPermission Admin $ remove (Proxy :: Proxy Category)
     )
   , (getCategoriesListRoute, list categoryNestedToResponse)
-  , (getNewsListRoute      , list newsToResponse)
+  , (getNewsListRoute      , listNews)
   , (createNewsDraftRoute  , create requestToNews newsToResponse)
   , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
   , ( publishNewsRoute

@@ -196,3 +196,16 @@ createCommentaryHandler = do
     commentary <- either (throwError . PSQLError) pure $ join eCommentary
     let commentaryJSON = encode $ commentaryToResponse commentary
     okResponseWithJSONBody commentaryJSON
+
+listNews :: Handler
+listNews = do
+  conf     <- asks hConfig
+  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  conn     <- asks hConnection
+  req      <- asks hRequest
+  let pagination = getLimitOffset maxLimit req
+  eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination
+  news  <- either (throwError . PSQLError) pure eNews
+  let responseNews  = newsToResponse <$> news
+      printableNews = encode responseNews
+  okResponseWithJSONBody printableNews

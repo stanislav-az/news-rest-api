@@ -57,6 +57,15 @@ CREATE TABLE tags_news(
 CREATE TABLE commentaries(
     id serial PRIMARY KEY,
     content text NOT NULL,
-    news_id integer REFERENCES news NOT NULL,
+    news_id integer,
+    user_id integer,
+    FOREIGN KEY (news_id) REFERENCES news (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE photos(
+    id serial PRIMARY KEY,
+    url text NOT NULL,
+    news_id integer,
     FOREIGN KEY (news_id) REFERENCES news (id) ON DELETE CASCADE
 );
