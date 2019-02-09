@@ -14,22 +14,19 @@ import           WebServer.Database
 data Commentary = Commentary {
   commentaryId :: Integer,
   commentaryContent :: Text,
-  commentaryNewsId :: Integer
+  commentaryNewsId :: Integer,
+  commentaryUserId :: Integer
 }
 
 instance FromRow Commentary where
-  fromRow = Commentary <$> field <*> field <*> field
+  fromRow = Commentary <$> field <*> field <*> field <*> field
 
 instance Persistent Commentary where
   tableName _ = "commentaries"
-
--- instance Fit CommentaryRaw Commentary where
+  
+  select = error "Use selectCommentariesByNewsId"
 
 data CommentaryRaw = CommentaryRaw {
-    commentaryRawContent :: Text
-  -- , commentaryRawNewsId :: Integer
+    commentaryRawContent :: Text,
+    commentaryRawUserId :: Integer
 }
-
--- instance ToRow CommentaryRaw where
---   toRow CommentaryRaw {..} =
---     [toField Default, toField commentaryRawContent, toField commentaryRawNewsId]

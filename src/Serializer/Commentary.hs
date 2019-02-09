@@ -9,10 +9,13 @@ import           Database.Models.Commentary
 newtype CreateCommentaryRequest = CreateCommentaryRequest CommentaryRaw
 
 instance FromJSON CreateCommentaryRequest where
-  parseJSON = withObject "CreateCommentaryRequest"
-    $ \v -> fmap CreateCommentaryRequest $ CommentaryRaw <$> v .: "content"
-      -- <*> v
-      -- .:  "news_id"
+  parseJSON = withObject "CreateCommentaryRequest" $ \v ->
+    fmap CreateCommentaryRequest
+      $   CommentaryRaw
+      <$> v
+      .:  "content"
+      <*> v
+      .:  "user_id"
 
 newtype CreateCommentaryResponse = CreateCommentaryResponse Commentary
 
@@ -21,6 +24,7 @@ instance ToJSON CreateCommentaryResponse where
     [ "id" .= commentaryId
     , "content" .= commentaryContent
     , "news_id" .= commentaryNewsId
+    , "user_id" .= commentaryUserId
     ]
 
 requestToCommentary :: CreateCommentaryRequest -> CommentaryRaw

@@ -6,6 +6,7 @@ module Database.Queries.Commentary where
 import           Database.PostgreSQL.Simple
 import           Database.Models.News
 import           Database.Models.Commentary
+import           Database.Models.User
 import           WebServer.Database
 import           Helpers
 
@@ -31,9 +32,16 @@ insertCommentary conn newsId CommentaryRaw {..} =
  where
   insertIfPosted isDraft = if isDraft
     then pure $ Left "Tried to insert commentary to a draft"
-    else listToEither "Failed to insert commentary"
-      <$> query conn insertQuery (commentaryRawContent, newsId)
-  insertQuery =
-    "INSERT INTO commentaries \
-    \VALUES (default,?,?) \
+    else listToEither "Failed to insert commentary" <$> query
+      conn
+      insertQuery
+      (commentaryRawContent, newsId, commentaryRawUserId)
+  insertQuery
+    = "INSERT INTO commentaries \
+    \VALUES (default,?,?,?) \
     \RETURNING * ;"
+
+isAuthorOfCommentary :: Connection -> User -> Integer -> IO Bool
+isAuthorOfCommentary conn user commentaryId = do
+  mbCommentary <- selectById conn commentaryId
+  pure $ maybe False (\c -> commentaryUserId c == userId user) mbCommentary

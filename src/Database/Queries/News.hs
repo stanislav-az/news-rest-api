@@ -66,15 +66,13 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
 
 isAuthorOfNews :: Connection -> User -> Integer -> IO Bool
 isAuthorOfNews conn user newsId = do
-  userFromNews <- getAuthorUserByNewsId conn newsId
-  let userIdFromUser = userId user
-      userIdFromNews = userId userFromNews
-  pure $ userIdFromUser == userIdFromNews
+  mbUserFromNews <- getAuthorUserByNewsId conn newsId
+  pure $ maybe False (\u -> userId user == userId u) mbUserFromNews
 
-getAuthorUserByNewsId :: Connection -> Integer -> IO User
-getAuthorUserByNewsId conn newsId = head <$> query conn q (Only newsId)
+getAuthorUserByNewsId :: Connection -> Integer -> IO (Maybe User)
+getAuthorUserByNewsId conn newsId = listToMaybe <$> query conn dbQuery (Only newsId)
  where
-  q
+  dbQuery
     = "SELECT u.id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
   \JOIN authors a ON a.user_id = u.id \
   \JOIN news n ON n.author_id = a.id \

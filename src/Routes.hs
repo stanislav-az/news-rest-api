@@ -7,12 +7,14 @@ import           Network.HTTP.Types
 import           Handlers
 import           Middlewares
 import           Database.Queries.News
+import           Database.Queries.Commentary
 import           WebServer.HandlerMonad
 import           Database.Models.Author
 import           Database.Models.News
 import           Database.Models.Category
 import           Database.Models.User
 import           Database.Models.Tag
+import           Database.Models.Commentary
 import           Data.Proxy
 import           Serializer.User                ( requestToUser
                                                 , userToResponse
@@ -65,6 +67,10 @@ deleteCategoryRoute =
 deleteUserRoute :: Route
 deleteUserRoute =
   PathRoute "api" $ PathRoute "users" $ DynamicRoute "id" $ MethodRoute "DELETE"
+
+deleteCommentRoute :: Route
+deleteCommentRoute =
+  PathRoute "api" $ PathRoute "comments" $ DynamicRoute "id" $ MethodRoute "DELETE"
 
 getUsersListRoute :: Route
 getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
@@ -156,6 +162,7 @@ routes =
     )
   , (createCommentaryRoute   , createCommentaryHandler)
   , (getCommentariesListRoute, listCommentariesHandler)
+  , (deleteCommentRoute, checkPermission (Owner isAuthorOfCommentary) $ remove (Proxy :: Proxy Commentary))
   , ( MethodRoute "GET"
     , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )
