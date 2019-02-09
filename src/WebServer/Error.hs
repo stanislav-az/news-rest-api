@@ -5,6 +5,7 @@ module WebServer.Error where
 
 import           WebServer.HandlerMonad
 import           WebServer.HandlerClass
+import           Helpers
 import qualified Data.Text                     as T
 import           Network.Wai
 import qualified Control.Exception             as E
@@ -12,12 +13,12 @@ import           Control.Monad.Except
 import           Control.Monad.IO.Class
 
 manageHandlerError :: (MonadHTTP m, MonadLogger m) => HandlerError -> m Response
-manageHandlerError e@(ParseError _) = logWarn (texifyE e) >> badRequestResponse
+manageHandlerError e@(ParseError _) = logWarn (texify e) >> badRequestResponse
 manageHandlerError e@Forbidden =
   logWarn "Attempted removing admin user or default category"
     >> notFoundResponse
 manageHandlerError e@(PSQLError _) =
-  logError (texifyE e) >> unprocessableEntityResponse
+  logError (texify e) >> unprocessableEntityResponse
 
 withPSQLException :: IO a -> IO (Either String a)
 withPSQLException io = E.try io >>= either left right
@@ -26,10 +27,7 @@ withPSQLException io = E.try io >>= either left right
   left  = pure . Left . show
   right = pure . Right
 
-texifyE :: HandlerError -> T.Text
-texifyE = T.pack . show
-
-throwParseError :: MonadError HandlerError m => [Char] -> m a
+throwParseError :: MonadError HandlerError m => String -> m a
 throwParseError err =
   throwError $ ParseError $ "Could not parse dynamic url: " ++ err
 

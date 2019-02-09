@@ -41,7 +41,7 @@ updateNewsQuery :: NewsRawPartial -> Query
 updateNewsQuery (NewsRawPartial NewsRawT {..}) =
   let params = makeQueryParameters
         [ ("title"      , newsRawTitle)
-        , ("category_id", integerToText <$> newsRawCategoryId)
+        , ("category_id", texify <$> newsRawCategoryId)
         , ("content"    , newsRawContent)
         , ("main_photo" , newsRawMainPhoto)
         ]

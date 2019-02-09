@@ -3,7 +3,7 @@
 
 module Database.Queries.Category where
 
-import qualified Data.Text                     as T
+import           Helpers
 import           Database.PostgreSQL.Simple
 import           Database.Models.Category
 import           Database.Queries.Queries
@@ -18,7 +18,7 @@ updateCategoryQuery :: CategoryRawPartial -> Query
 updateCategoryQuery CategoryRawPartial {..} =
   let params = makeQueryParameters
         [ ("name"     , categoryRawPartialName)
-        , ("parent_id", T.pack . show <$> categoryRawPartialParentId)
+        , ("parent_id", texify <$> categoryRawPartialParentId)
         ]
   in  "UPDATE categories SET "
         <> params

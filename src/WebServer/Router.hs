@@ -7,6 +7,7 @@ import qualified Data.ByteString               as BS
 import qualified Config                        as C
 import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
+import           Helpers
 import           WebServer.Error
 import           Network.Wai
 import           Network.HTTP.Types
@@ -53,4 +54,4 @@ route (h : hs) req | isCorrect = liftIO runHAndCatchE
     conf <- C.loadConfig
     res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
       runHandler conf dpMap req conn $ catchError handler manageHandlerError
-    either (\e -> (logError $ texifyE e) >> serverErrorResponse) pure res
+    either (\e -> (logError $ texify e) >> serverErrorResponse) pure res

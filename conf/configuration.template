@@ -11,3 +11,9 @@ pagination
 {
     max_limit = 15
 }
+
+logging
+{
+    log_to_stdout = true
+    log_to_file = "./logs/news-server.log" # Optional parameter
+}
