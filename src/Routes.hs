@@ -70,7 +70,8 @@ deleteUserRoute =
 
 deleteCommentRoute :: Route
 deleteCommentRoute =
-  PathRoute "api" $ PathRoute "comments" $ DynamicRoute "id" $ MethodRoute "DELETE"
+  PathRoute "api" $ PathRoute "comments" $ DynamicRoute "id" $ MethodRoute
+    "DELETE"
 
 getUsersListRoute :: Route
 getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
@@ -112,6 +113,14 @@ publishNewsRoute =
 getNewsListRoute :: Route
 getNewsListRoute = PathRoute "api" $ PathRoute "posts" $ MethodRoute "GET"
 
+searchNewsRoute :: Route
+searchNewsRoute =
+  PathRoute "api"
+    $ PathRoute "posts"
+    $ PathRoute "search"
+    $ DynamicRoute "search"
+    $ MethodRoute "GET"
+
 createCommentaryRoute :: Route
 createCommentaryRoute =
   PathRoute "api"
@@ -152,6 +161,7 @@ routes =
     )
   , (getCategoriesListRoute, list categoryNestedToResponse)
   , (getNewsListRoute      , listNews)
+  , (searchNewsRoute      , searchNews)
   , (createNewsDraftRoute  , create requestToNews newsToResponse)
   , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
   , ( publishNewsRoute
@@ -162,7 +172,10 @@ routes =
     )
   , (createCommentaryRoute   , createCommentaryHandler)
   , (getCommentariesListRoute, listCommentariesHandler)
-  , (deleteCommentRoute, checkPermission (Owner isAuthorOfCommentary) $ remove (Proxy :: Proxy Commentary))
+  , ( deleteCommentRoute
+    , checkPermission (Owner isAuthorOfCommentary)
+      $ remove (Proxy :: Proxy Commentary)
+    )
   , ( MethodRoute "GET"
     , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )

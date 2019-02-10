@@ -10,7 +10,7 @@ import qualified Config                        as C
 initializeDB :: IO ()
 initializeDB = do
   conf <- C.loadConfig
-  createDirectoryIfMissing False "./DBMigrations"
+  createDirectoryIfMissing False "./migrations"
   bracket (DC.connect conf) close migrate
 
 migrate :: Connection -> IO ()
@@ -19,4 +19,4 @@ migrate conn = do
   case result of
     MigrationError err -> error err
     _                  -> return ()
-  where cmds = [MigrationInitialization, MigrationDirectory "./DBMigrations"]
+  where cmds = [MigrationInitialization, MigrationDirectory "./migrations"]

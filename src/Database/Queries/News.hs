@@ -12,6 +12,7 @@ import           Helpers
 import           WebServer.Database
 import           WebServer.UrlParser.Filter
 import           Data.Maybe                     ( listToMaybe )
+import qualified Data.Text                     as T
 
 publishNews :: Connection -> Integer -> IO NewsNested
 publishNews conn newsId =
@@ -41,8 +42,8 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
        where
         deleteOldPhotos =
           execute conn deleteOldPhotosQuery (Only updatingNewsId)
-        insertNewPhotos = forM_ photos $ \photo ->
-          execute conn insertPhotextToQuery (photo, updatingNewsId)
+        insertNewPhotos = forM_ photos
+          $ \photo -> execute conn insertPhotoQuery (photo, updatingNewsId)
     nestNews conn news
 
 deleteTagsNewsQuery :: Query
@@ -80,6 +81,10 @@ getAuthorUserByNewsId conn newsId = listToMaybe
   \JOIN news n ON n.author_id = a.id \
   \WHERE n.id = ?"
 
+selectNewsNested :: Connection -> (Limit, Offset) -> Filter -> IO [NewsNested]
+selectNewsNested conn pagination filter =
+  selectNews conn pagination filter >>= (mapM (nestNews conn))
+
 selectNews :: Connection -> (Limit, Offset) -> Filter -> IO [News]
 selectNews conn (Limit limit, Offset offset) filter = do
   print dbQuery
@@ -89,13 +94,9 @@ selectNews conn (Limit limit, Offset offset) filter = do
     "SELECT news_id, news_title, news_date_created, news_author_id, \
     \news_category_id, news_content, news_main_photo, news_is_draft \
     \FROM filterable_news \
-    \WHERE news_is_draft = false "
+    \WHERE true "
       <> filterToQuery filter
       <> " LIMIT ? OFFSET ? ;"
-
-selectNewsNested :: Connection -> (Limit, Offset) -> Filter -> IO [NewsNested]
-selectNewsNested conn pagination filter =
-  selectNews conn pagination filter >>= (mapM (nestNews conn))
 
 filterToQuery :: Filter -> Query
 filterToQuery Filter {..} =
@@ -126,3 +127,24 @@ filterToQuery Filter {..} =
 
 maybeQuery :: (a -> Query) -> Maybe a -> Query
 maybeQuery = maybe ""
+
+findNewsNested :: Connection -> (Limit, Offset) -> T.Text -> IO [NewsNested]
+findNewsNested conn pagination searchText =
+  findNews conn pagination searchText >>= (mapM (nestNews conn))
+
+findNews :: Connection -> (Limit, Offset) -> T.Text -> IO [News]
+findNews conn (Limit limit, Offset offset) searchText = do
+  print dbQuery
+  query conn dbQuery [limit, offset]
+ where
+  dbQuery =
+    "SELECT DISTINCT news_id, news_title, news_date_created, news_author_id, \
+    \news_category_id, news_content, news_main_photo, news_is_draft \
+    \FROM searchable_news \
+    \WHERE false "
+      <> " OR news_content ~* '" <> searchQuery <> "' "
+      <> " OR news_author_name ~* '" <> searchQuery <> "' "
+      <> " OR news_category_name ~* '" <> searchQuery <> "' "
+      <> " OR news_tag_name ~* '" <> searchQuery <> "' "
+      <> " LIMIT ? OFFSET ? ;" 
+  searchQuery = textToQuery searchText

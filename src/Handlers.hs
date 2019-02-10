@@ -28,16 +28,13 @@ import           WebServer.Error
 import qualified WebServer.Database            as D
 import           WebServer.UrlParser.Pagination
 import           WebServer.UrlParser.Filter
+import           WebServer.UrlParser.Dynamic
 import qualified Config                        as C
 import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Data.Maybe                     ( fromMaybe )
 import           WebServer.UrlParser.Query
 import qualified Data.Text                     as T
-
-getIdFromUrl :: DynamicPathsMap -> Either String Integer
-getIdFromUrl dpMap =
-  (maybe (Left "no info") Right $ lookup "id" dpMap) >>= textToInteger
 
 create :: (FromJSON a, D.Fit b c, ToJSON d) => (a -> b) -> (c -> d) -> Handler
 create requestToEntity entityToResponse = do
@@ -200,6 +197,23 @@ createCommentaryHandler = do
     let commentaryJSON = encode $ commentaryToResponse commentary
     okResponseWithJSONBody commentaryJSON
 
+searchNews :: Handler
+searchNews = do
+  conf     <- asks hConfig
+  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  conn     <- asks hConnection
+  req      <- asks hRequest
+  dpMap    <- asks hDynamicPathsMap
+  let pagination = getLimitOffset maxLimit req
+  searchText <- either throwParseError pure $ getSearchTextFromUrl dpMap
+  eNews      <- liftIO $ withPSQLException $ findNewsNested conn
+                                                            pagination
+                                                            searchText
+  news <- either (throwError . PSQLError) pure eNews
+  let responseNews  = newsToResponse <$> news
+      printableNews = encode responseNews
+  okResponseWithJSONBody printableNews
+
 listNews :: Handler
 listNews = do
   conf     <- asks hConfig
@@ -208,7 +222,6 @@ listNews = do
   req      <- asks hRequest
   let pagination = getLimitOffset maxLimit req
       filter     = getFilter req
-  -- liftIO $ print test
   eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination filter
   news  <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
