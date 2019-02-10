@@ -11,6 +11,7 @@ import           Database.Queries.Queries
 import           Helpers
 import           WebServer.Database
 import           WebServer.UrlParser.Filter
+import           WebServer.UrlParser.Sorter
 import           Data.Maybe                     ( listToMaybe )
 import qualified Data.Text                     as T
 
@@ -81,14 +82,14 @@ getAuthorUserByNewsId conn newsId = listToMaybe
   \JOIN news n ON n.author_id = a.id \
   \WHERE n.id = ?"
 
-selectNewsNested :: Connection -> (Limit, Offset) -> Filter -> IO [NewsNested]
-selectNewsNested conn pagination filter =
-  selectNews conn pagination filter >>= (mapM (nestNews conn))
+selectNewsNested
+  :: Connection -> (Limit, Offset) -> Filter -> Maybe Sorter -> IO [NewsNested]
+selectNewsNested conn pagination filter sorter =
+  selectNews conn pagination filter sorter >>= (mapM (nestNews conn))
 
-selectNews :: Connection -> (Limit, Offset) -> Filter -> IO [News]
-selectNews conn (Limit limit, Offset offset) filter = do
-  print dbQuery
-  query conn dbQuery [limit, offset]
+selectNews
+  :: Connection -> (Limit, Offset) -> Filter -> Maybe Sorter -> IO [News]
+selectNews conn (Limit limit, Offset offset) filter sorter = query conn dbQuery [limit, offset]
  where
   dbQuery =
     "SELECT news_id, news_title, news_date_created, news_author_id, \
@@ -96,6 +97,7 @@ selectNews conn (Limit limit, Offset offset) filter = do
     \FROM filterable_news \
     \WHERE true "
       <> filterToQuery filter
+      <> maybeQuery sorterToQuery sorter
       <> " LIMIT ? OFFSET ? ;"
 
 filterToQuery :: Filter -> Query
@@ -128,23 +130,37 @@ filterToQuery Filter {..} =
 maybeQuery :: (a -> Query) -> Maybe a -> Query
 maybeQuery = maybe ""
 
-findNewsNested :: Connection -> (Limit, Offset) -> T.Text -> IO [NewsNested]
-findNewsNested conn pagination searchText =
-  findNews conn pagination searchText >>= (mapM (nestNews conn))
+findNewsNested
+  :: Connection -> (Limit, Offset) -> T.Text -> Maybe Sorter -> IO [NewsNested]
+findNewsNested conn pagination searchText sorter =
+  findNews conn pagination searchText sorter >>= (mapM (nestNews conn))
 
-findNews :: Connection -> (Limit, Offset) -> T.Text -> IO [News]
-findNews conn (Limit limit, Offset offset) searchText = do
-  print dbQuery
-  query conn dbQuery [limit, offset]
+findNews :: Connection -> (Limit, Offset) -> T.Text -> Maybe Sorter -> IO [News]
+findNews conn (Limit limit, Offset offset) searchText sorter = query conn dbQuery [limit, offset]
  where
   dbQuery =
     "SELECT DISTINCT news_id, news_title, news_date_created, news_author_id, \
     \news_category_id, news_content, news_main_photo, news_is_draft \
     \FROM searchable_news \
     \WHERE false "
-      <> " OR news_content ~* '" <> searchQuery <> "' "
-      <> " OR news_author_name ~* '" <> searchQuery <> "' "
-      <> " OR news_category_name ~* '" <> searchQuery <> "' "
-      <> " OR news_tag_name ~* '" <> searchQuery <> "' "
-      <> " LIMIT ? OFFSET ? ;" 
+      <> " OR news_content ~* '"
+      <> searchQuery
+      <> "' "
+      <> " OR news_author_name ~* '"
+      <> searchQuery
+      <> "' "
+      <> " OR news_category_name ~* '"
+      <> searchQuery
+      <> "' "
+      <> " OR news_tag_name ~* '"
+      <> searchQuery
+      <> "' "
+      <> maybeQuery sorterToQuery sorter
+      <> " LIMIT ? OFFSET ? ;"
   searchQuery = textToQuery searchText
+
+sorterToQuery :: Sorter -> Query
+sorterToQuery Author   = " ORDER BY news_author_name "
+sorterToQuery Category = " ORDER BY news_category_name "
+sorterToQuery Date     = " ORDER BY news_date_created "
+sorterToQuery Photos   = " ORDER BY photos_num "

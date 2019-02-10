@@ -17,8 +17,6 @@ data Filter = Filter {
   filterNewsTitleHas :: Maybe B.ByteString,
   filterNewsContentHas :: Maybe B.ByteString
 } deriving Show
--- search content, author_name, category_name, tag_name
--- sort by date, author_name, category_name, photos_num
 
 data DateCreated = CreatedAt Day | CreatedAtLt Day | CreatedAtGt Day
   deriving Show

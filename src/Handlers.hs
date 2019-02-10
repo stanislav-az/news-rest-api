@@ -29,11 +29,11 @@ import qualified WebServer.Database            as D
 import           WebServer.UrlParser.Pagination
 import           WebServer.UrlParser.Filter
 import           WebServer.UrlParser.Dynamic
+import           WebServer.UrlParser.Sorter
 import qualified Config                        as C
 import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Data.Maybe                     ( fromMaybe )
-import           WebServer.UrlParser.Query
 import qualified Data.Text                     as T
 
 create :: (FromJSON a, D.Fit b c, ToJSON d) => (a -> b) -> (c -> d) -> Handler
@@ -205,10 +205,12 @@ searchNews = do
   req      <- asks hRequest
   dpMap    <- asks hDynamicPathsMap
   let pagination = getLimitOffset maxLimit req
+      sorter     = getSorter req
   searchText <- either throwParseError pure $ getSearchTextFromUrl dpMap
   eNews      <- liftIO $ withPSQLException $ findNewsNested conn
                                                             pagination
                                                             searchText
+                                                            sorter
   news <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
       printableNews = encode responseNews
@@ -222,8 +224,12 @@ listNews = do
   req      <- asks hRequest
   let pagination = getLimitOffset maxLimit req
       filter     = getFilter req
-  eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination filter
-  news  <- either (throwError . PSQLError) pure eNews
+      sorter     = getSorter req
+  eNews <- liftIO $ withPSQLException $ selectNewsNested conn
+                                                         pagination
+                                                         filter
+                                                         sorter
+  news <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
       printableNews = encode responseNews
   okResponseWithJSONBody printableNews
