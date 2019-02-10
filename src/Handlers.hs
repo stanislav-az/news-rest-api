@@ -26,7 +26,8 @@ import           WebServer.HandlerMonad
 import           WebServer.HandlerClass
 import           WebServer.Error
 import qualified WebServer.Database            as D
-import           WebServer.Pagination
+import           WebServer.UrlParser.Pagination
+import           WebServer.UrlParser.Filter
 import qualified Config                        as C
 import           Control.Monad.Reader
 import           Control.Monad.Except
@@ -204,7 +205,9 @@ listNews = do
   conn     <- asks hConnection
   req      <- asks hRequest
   let pagination = getLimitOffset maxLimit req
-  eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination
+      filter     = getFilter req
+  -- liftIO $ print filter
+  eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination filter
   news  <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
       printableNews = encode responseNews

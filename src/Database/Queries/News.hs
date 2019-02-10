@@ -10,6 +10,7 @@ import           Database.Models.User
 import           Database.Queries.Queries
 import           Helpers
 import           WebServer.Database
+import           WebServer.UrlParser.Filter
 import           Data.Maybe                     ( listToMaybe )
 
 publishNews :: Connection -> Integer -> IO NewsNested
@@ -70,7 +71,8 @@ isAuthorOfNews conn user newsId = do
   pure $ maybe False (\u -> userId user == userId u) mbUserFromNews
 
 getAuthorUserByNewsId :: Connection -> Integer -> IO (Maybe User)
-getAuthorUserByNewsId conn newsId = listToMaybe <$> query conn dbQuery (Only newsId)
+getAuthorUserByNewsId conn newsId = listToMaybe
+  <$> query conn dbQuery (Only newsId)
  where
   dbQuery
     = "SELECT u.id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
@@ -78,16 +80,46 @@ getAuthorUserByNewsId conn newsId = listToMaybe <$> query conn dbQuery (Only new
   \JOIN news n ON n.author_id = a.id \
   \WHERE n.id = ?"
 
-selectNews :: Connection -> (Limit, Offset) -> IO [News]
-selectNews conn (Limit limit, Offset offset) = query conn
-                                                     dbQuery
-                                                     [limit, offset]
+selectNews :: Connection -> (Limit, Offset) -> Filter -> IO [News]
+selectNews conn (Limit limit, Offset offset) filter = do
+  print dbQuery
+  query conn dbQuery [limit, offset]
  where
-  dbQuery
-    = "SELECT * FROM news \
-              \WHERE is_draft = false \
-              \LIMIT ? OFFSET ? ;"
+  dbQuery =
+    "SELECT news_id, news_title, news_date_created, news_author_id, \
+    \news_category_id, news_content, news_main_photo, news_is_draft \
+    \FROM filterable_news \
+    \WHERE news_is_draft = false "
+      <> filterToQuery filter
+      <> "LIMIT ? OFFSET ? ;"
 
-selectNewsNested :: Connection -> (Limit, Offset) -> IO [NewsNested]
-selectNewsNested conn pagination =
-  selectNews conn pagination >>= (mapM (nestNews conn))
+selectNewsNested :: Connection -> (Limit, Offset) -> Filter -> IO [NewsNested]
+selectNewsNested conn pagination filter =
+  selectNews conn pagination filter >>= (mapM (nestNews conn))
+
+filterToQuery :: Filter -> Query
+filterToQuery Filter {..} =
+  maybeQuery dateCreatedToQuery filterDateCreated
+    <> maybeQuery authorNameToQuery  filterAuthorName
+    <> maybeQuery categoryIdToQuery  filterCategoryId
+    <> maybeQuery tagIdsToQuery      filterTagIds
+    <> maybeQuery newsTitleToQuery   filterNewsTitleHas
+    <> maybeQuery newsContentToQuery filterNewsContentHas
+ where
+  dateCreatedToQuery (CreatedAt day) =
+    " AND date_trunc('day', news_date_created) = '" <> showQuery day <> "' "
+  dateCreatedToQuery (CreatedAtLt day) =
+    " AND date_trunc('day', news_date_created) < '" <> showQuery day <> "' "
+  dateCreatedToQuery (CreatedAtGt day) =
+    " AND date_trunc('day', news_date_created) > '" <> showQuery day <> "' "
+  authorNameToQuery name = " AND news_author_name = '" <> toQuery name <> "' "
+  categoryIdToQuery id = " AND news_category_id = " <> showQuery id
+  tagIdsToQuery (TagId   id  ) = " AND news_tag_ids @> ARRAY" <> showQuery [id]
+  tagIdsToQuery (TagsIn  tags) = " AND news_tag_ids && ARRAY" <> showQuery tags
+  tagIdsToQuery (TagsAll tags) = " AND news_tag_ids @> ARRAY" <> showQuery tags
+  newsTitleToQuery title = " AND news_title ~* '" <> toQuery title <> "' "
+  newsContentToQuery content =
+    " AND news_content ~* '" <> toQuery content <> "' "
+
+maybeQuery :: (a -> Query) -> Maybe a -> Query
+maybeQuery = maybe ""

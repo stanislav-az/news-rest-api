@@ -1,11 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module WebServer.Pagination where
+module WebServer.UrlParser.Pagination where
 
-import           Control.Monad
 import           Data.Maybe                     ( fromMaybe )
-import qualified Data.ByteString.Char8         as B8
-import qualified Text.Read                     as R
+import           WebServer.UrlParser.Query
 import           Network.Wai
 
 newtype Limit = Limit {
@@ -36,6 +34,3 @@ getLimitOffset maxLimit req =
   , fromMaybe (Offset 0) (getQueryParam req "offset")
   )
 
-getQueryParam :: (Read a) => Request -> B8.ByteString -> Maybe a
-getQueryParam req key = join param >>= (R.readMaybe . B8.unpack)
-  where param = lookup key (queryString req)

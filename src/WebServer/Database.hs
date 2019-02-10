@@ -4,11 +4,17 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module WebServer.Database (Limit(..), Offset(..), Persistent(..), Fit(..)) where
+module WebServer.Database
+  ( Limit(..)
+  , Offset(..)
+  , Persistent(..)
+  , Fit(..)
+  )
+where
 
 import           Database.PostgreSQL.Simple
 import           Database.PostgreSQL.Simple.ToRow
-import           WebServer.Pagination
+import           WebServer.UrlParser.Pagination
 import           Data.Proxy
 import           Data.Maybe                     ( listToMaybe )
 

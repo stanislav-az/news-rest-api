@@ -21,4 +21,8 @@ makeQueryParameters kvps =
     (uncurry nameFieldOnSQL)
     kvps
 
+toQuery :: T.Text -> Query
 toQuery = fromString . T.unpack
+
+showQuery :: (Show a) => a -> Query
+showQuery = fromString . show

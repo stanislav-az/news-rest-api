@@ -113,18 +113,8 @@ data TagNews = TagNews {
   tgNewsId :: Integer
 }
 
--- instance ToRow TagNews where
---   toRow TagNews {..} = [toField tgTagId, toField tgNewsId]
-
 instance FromRow TagNews where
   fromRow = TagNews <$> field <*> field
-
--- instance Persistent TagNews where
---   tableName _ = "tags_news"
-
---   selectById = error "Table tags_news has composite primary key"
-
--- instance Fit TagNews TagNews where
 
 data Photo = Photo {
   photoId :: Integer,
