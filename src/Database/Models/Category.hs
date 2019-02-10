@@ -64,9 +64,8 @@ insertCategoryQuery :: CategoryRaw -> Query
 insertCategoryQuery CategoryRaw {..} =
   "INSERT INTO categories(id,name,parent_id) \
   \ VALUES (default, '"
-    <> toQuery categoryRawName
+    <> textToQuery categoryRawName
     <> "', "
     <> maybeAddParent
     <> ") RETURNING id, name, parent_id"
- where
-  maybeAddParent = maybe "default" (fromString . show) categoryRawParentId
+  where maybeAddParent = maybe "default" showToQuery categoryRawParentId

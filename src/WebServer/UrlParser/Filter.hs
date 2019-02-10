@@ -6,26 +6,22 @@ import           Data.Time
 import           Network.Wai
 import           Control.Applicative
 import qualified Data.Text                     as T
+import qualified Data.ByteString               as B
 import           WebServer.UrlParser.Query
 
 data Filter = Filter {
   filterDateCreated :: Maybe DateCreated,
-  filterAuthorName :: Maybe T.Text,
+  filterAuthorName :: Maybe B.ByteString,
   filterCategoryId :: Maybe Integer,
   filterTagIds :: Maybe TagIds,
-  filterNewsTitleHas :: Maybe T.Text,
-  filterNewsContentHas :: Maybe T.Text
+  filterNewsTitleHas :: Maybe B.ByteString,
+  filterNewsContentHas :: Maybe B.ByteString
 } deriving Show
 -- search content, author_name, category_name, tag_name
 -- sort by date, author_name, category_name, photos_num
 
 data DateCreated = CreatedAt Day | CreatedAtLt Day | CreatedAtGt Day
   deriving Show
-
--- instance Show DateCreated where
---   show (CreatedAt   d) = show d
---   show (CreatedAtLt d) = show d
---   show (CreatedAtGt d) = show d
 
 data TagIds = TagId Integer | TagsIn [Integer] | TagsAll [Integer]
   deriving Show
@@ -35,11 +31,11 @@ getFilter req = Filter
   { filterDateCreated    = (CreatedAt <$> getQueryParam req "created_at")
                            <|> (CreatedAtLt <$> getQueryParam req "created_at_lt")
                            <|> (CreatedAtGt <$> getQueryParam req "created_at_gt")
-  , filterAuthorName     = getQueryParam req "author_name"
+  , filterAuthorName     = getQueryBS req "author_name"
   , filterCategoryId     = getQueryParam req "category_id"
   , filterTagIds         = (TagId <$> getQueryParam req "tag_id")
                            <|> (TagsIn <$> getQueryParam req "tag_id_in")
                            <|> (TagsAll <$> getQueryParam req "tag_id_all")
-  , filterNewsTitleHas   = getQueryParam req "title_has"
-  , filterNewsContentHas = getQueryParam req "content_has"
+  , filterNewsTitleHas   = getQueryBS req "title_has"
+  , filterNewsContentHas = getQueryBS req "content_has"
   }

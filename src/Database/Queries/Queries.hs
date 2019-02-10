@@ -3,8 +3,11 @@
 module Database.Queries.Queries where
 
 import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as T
+import qualified Data.ByteString               as B
 import           Data.String
 import           Database.PostgreSQL.Simple
+import           Database.PostgreSQL.Simple.Types
 
 getList :: FromRow a => Connection -> Query -> IO [a]
 getList conn tableName = query_ conn $ "SELECT * FROM " <> tableName
@@ -17,12 +20,15 @@ nameFieldOnSQL fieldName = maybe "" nameField
 
 makeQueryParameters :: [(T.Text, Maybe T.Text)] -> Query
 makeQueryParameters kvps =
-  toQuery . T.intercalate "," . filter (not . T.null) $ map
+  textToQuery . T.intercalate "," . filter (not . T.null) $ map
     (uncurry nameFieldOnSQL)
     kvps
 
-toQuery :: T.Text -> Query
-toQuery = fromString . T.unpack
+textToQuery :: T.Text -> Query
+textToQuery = Query . T.encodeUtf8
 
-showQuery :: (Show a) => a -> Query
-showQuery = fromString . show
+showToQuery :: (Show a) => a -> Query
+showToQuery = fromString . show
+
+bsToQuery :: B.ByteString -> Query
+bsToQuery = Query

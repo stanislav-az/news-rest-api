@@ -79,7 +79,7 @@ instance Fit NewsRaw NewsNested where
     forM_ tagIds
       $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
     forM_ photoUrls
-      $ \photo -> execute conn insertPhotoQuery (photo, thisNewsId)
+      $ \photo -> execute conn insertPhotextToQuery (photo, thisNewsId)
     Just <$> nestNews conn news
 
 data NewsRawT f = NewsRawT {
@@ -151,8 +151,8 @@ insertTagsNewsQuery =
   "INSERT INTO tags_news(tag_id, news_id) \
   \ VALUES (?,?) "
 
-insertPhotoQuery :: Query
-insertPhotoQuery =
+insertPhotextToQuery :: Query
+insertPhotextToQuery =
   "INSERT INTO photos(id, url, news_id) \
   \ VALUES (default,?,?) "
 

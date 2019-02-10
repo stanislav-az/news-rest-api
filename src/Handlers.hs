@@ -32,6 +32,8 @@ import qualified Config                        as C
 import           Control.Monad.Reader
 import           Control.Monad.Except
 import           Data.Maybe                     ( fromMaybe )
+import           WebServer.UrlParser.Query
+import qualified Data.Text                     as T
 
 getIdFromUrl :: DynamicPathsMap -> Either String Integer
 getIdFromUrl dpMap =
@@ -206,7 +208,7 @@ listNews = do
   req      <- asks hRequest
   let pagination = getLimitOffset maxLimit req
       filter     = getFilter req
-  -- liftIO $ print filter
+  -- liftIO $ print test
   eNews <- liftIO $ withPSQLException $ selectNewsNested conn pagination filter
   news  <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news

@@ -41,8 +41,8 @@ updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
        where
         deleteOldPhotos =
           execute conn deleteOldPhotosQuery (Only updatingNewsId)
-        insertNewPhotos = forM_ photos
-          $ \photo -> execute conn insertPhotoQuery (photo, updatingNewsId)
+        insertNewPhotos = forM_ photos $ \photo ->
+          execute conn insertPhotextToQuery (photo, updatingNewsId)
     nestNews conn news
 
 deleteTagsNewsQuery :: Query
@@ -91,7 +91,7 @@ selectNews conn (Limit limit, Offset offset) filter = do
     \FROM filterable_news \
     \WHERE news_is_draft = false "
       <> filterToQuery filter
-      <> "LIMIT ? OFFSET ? ;"
+      <> " LIMIT ? OFFSET ? ;"
 
 selectNewsNested :: Connection -> (Limit, Offset) -> Filter -> IO [NewsNested]
 selectNewsNested conn pagination filter =
@@ -107,19 +107,22 @@ filterToQuery Filter {..} =
     <> maybeQuery newsContentToQuery filterNewsContentHas
  where
   dateCreatedToQuery (CreatedAt day) =
-    " AND date_trunc('day', news_date_created) = '" <> showQuery day <> "' "
+    " AND date_trunc('day', news_date_created) = '" <> showToQuery day <> "' "
   dateCreatedToQuery (CreatedAtLt day) =
-    " AND date_trunc('day', news_date_created) < '" <> showQuery day <> "' "
+    " AND date_trunc('day', news_date_created) < '" <> showToQuery day <> "' "
   dateCreatedToQuery (CreatedAtGt day) =
-    " AND date_trunc('day', news_date_created) > '" <> showQuery day <> "' "
-  authorNameToQuery name = " AND news_author_name = '" <> toQuery name <> "' "
-  categoryIdToQuery id = " AND news_category_id = " <> showQuery id
-  tagIdsToQuery (TagId   id  ) = " AND news_tag_ids @> ARRAY" <> showQuery [id]
-  tagIdsToQuery (TagsIn  tags) = " AND news_tag_ids && ARRAY" <> showQuery tags
-  tagIdsToQuery (TagsAll tags) = " AND news_tag_ids @> ARRAY" <> showQuery tags
-  newsTitleToQuery title = " AND news_title ~* '" <> toQuery title <> "' "
+    " AND date_trunc('day', news_date_created) > '" <> showToQuery day <> "' "
+  authorNameToQuery name =
+    " AND news_author_name = '" <> bsToQuery name <> "' "
+  categoryIdToQuery id = " AND news_category_id = " <> showToQuery id
+  tagIdsToQuery (TagId id) = " AND news_tag_ids @> ARRAY" <> showToQuery [id]
+  tagIdsToQuery (TagsIn tags) =
+    " AND news_tag_ids && ARRAY" <> showToQuery tags
+  tagIdsToQuery (TagsAll tags) =
+    " AND news_tag_ids @> ARRAY" <> showToQuery tags
+  newsTitleToQuery title = " AND news_title ~* '" <> bsToQuery title <> "' "
   newsContentToQuery content =
-    " AND news_content ~* '" <> toQuery content <> "' "
+    " AND news_content ~* '" <> bsToQuery content <> "' "
 
 maybeQuery :: (a -> Query) -> Maybe a -> Query
 maybeQuery = maybe ""
