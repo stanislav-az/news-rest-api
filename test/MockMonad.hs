@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module MockMonad where
 
@@ -15,26 +16,67 @@ import           Database.Models.Author
 import           Database.Models.User
 import           Data.Proxy
 import           Debug.Trace
+import qualified Data.Map.Strict               as M
+import           Data.Time
 
 data MockIO = MockIO {
-  mockUsers :: [User],
-  mockAuthors :: [Author]
+  mockDB :: MockDB
 } deriving Show
+
+type MockHandler = MockMonad Response
 
 newtype MockMonad a = MockMonad {
   runMockMonad :: StateT MockIO (ReaderT HM.HandlerEnv (Except HM.HandlerError)) a
 } deriving (Functor, Applicative, Monad, MonadReader HM.HandlerEnv, MonadError HM.HandlerError, MonadState MockIO)
 
-runMock
-  :: MockIO
-  -> HM.HandlerEnv
-  -> MockMonad a
-  -> Either HM.HandlerError (a, MockIO)
-runMock e r = runExcept . (`runReaderT` r) . (`runStateT` e) . runMockMonad
+
+runMock db maxLimit dpMap req conn =
+  runExcept . (`runReaderT` r) . (`evalStateT` e) . runMockMonad
+ where
+  r = HM.HandlerEnv { hMaxLimit        = maxLimit
+                    , hDynamicPathsMap = dpMap
+                    , hRequest         = req
+                    , hConnection      = conn
+                    }
+  e = MockIO { mockDB = db }
+
+data MockDB = DB (M.Map Integer User) (M.Map Integer Author) deriving Show
+
+class Unwraped a where
+  unwrap :: MockDB -> M.Map Integer a
+  select :: (D.Limit, D.Offset) -> MockDB -> [a]
+  select (D.Limit limit, D.Offset offset) db = take l $ drop o xs
+    where
+      l = fromIntegral limit
+      o = fromIntegral offset
+      xs = M.elems $ unwrap db
+  selectById :: Integer -> MockDB -> Maybe a
+  selectById id db = M.lookup id $ unwrap db
+
+instance Unwraped User where
+  unwrap (DB us _) = us
 
 instance PersistentUser MockMonad where
-  selectUsers (D.Limit limit, D.Offset offset) = do
-    users <- gets mockUsers
-    let l = fromIntegral limit
-        o = fromIntegral offset
-    pure $ Right $ take l $ drop o users
+  selectUsers p = Right . select p <$> gets mockDB
+  selectUserById id = do
+    mdb <- gets mockDB
+    let mbUser = selectById id mdb
+    pure $ maybe (Left "No such id") Right mbUser
+  deleteUserById _ = pure $ Right ()
+  insertUser UserRaw {..} = pure $ Right User { userId          = 1
+                                              , userName        = userRawName
+                                              , userSurname     = userRawSurname
+                                              , userAvatar      = userRawAvatar
+                                              , userDateCreated = sometime
+                                              , userIsAdmin     = False
+                                              }
+
+sometime :: LocalTime
+sometime = LocalTime
+  { localDay       = ModifiedJulianDay { toModifiedJulianDay = 162342 }
+  , localTimeOfDay = TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
+  }
+
+-- instance HC.MonadHTTP MockMonad where
+--   getRequestBody = strictRequestBody
+--   respond s h b = pure $ responseLBS s h b

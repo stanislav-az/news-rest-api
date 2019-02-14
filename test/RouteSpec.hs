@@ -12,12 +12,6 @@ import           WebServer.Router               ( checkout
                                                 )
 import           Network.Wai
 import           Network.HTTP.Types
-import qualified Data.ByteString.Lazy          as L
-import           Data.ByteString.Builder        ( Builder
-                                                , toLazyByteString
-                                                , word8
-                                                )
-import           Data.IORef
 
 rootRoute = MethodRoute "GET"
 
@@ -52,44 +46,43 @@ spec = do
             let res = checkout [] rootRoute [] "POST"
             (fst res) `shouldBe` False
         it "should not route to non-existing GET url" $ do
-            let res =
-                    checkout [] rootRoute ["api", "unknown", "123"] "GET"
+            let res = checkout [] rootRoute ["api", "unknown", "123"] "GET"
             (fst res) `shouldBe` False
         it
                 "should route to user assign page for user 55 with POST and get dynamic path"
             $ do
                   let
                       res = checkout []
-                                           userAssignRoute
-                                           ["api", "users", "55", "assign"]
-                                           "POST"
+                                     userAssignRoute
+                                     ["api", "users", "55", "assign"]
+                                     "POST"
                   res `shouldBe` (True, [("pk", "55")])
         it
                 "should route to user reject page for user 55 with POST and get dynamic path"
             $ do
                   let
                       res = checkout []
-                                           userRejectRoute
-                                           ["api", "users", "55", "reject"]
-                                           "POST"
+                                     userRejectRoute
+                                     ["api", "users", "55", "reject"]
+                                     "POST"
                   res `shouldBe` (True, [("pk", "55")])
         it
                 "should route to user assign page with / for user 55 with POST and get dynamic path"
             $ do
                   let
                       res = checkout []
-                                           userAssignRoute
-                                           ["api", "users", "55", "assign", ""]
-                                           "POST"
+                                     userAssignRoute
+                                     ["api", "users", "55", "assign", ""]
+                                     "POST"
                   res `shouldBe` (True, [("pk", "55")])
         it
                 "should route to user reject page with / for user 55 with POST and get dynamic path"
             $ do
                   let
                       res = checkout []
-                                           userRejectRoute
-                                           ["api", "users", "55", "reject", ""]
-                                           "POST"
+                                     userRejectRoute
+                                     ["api", "users", "55", "reject", ""]
+                                     "POST"
                   res `shouldBe` (True, [("pk", "55")])
         it "should not route if url is longer than existing routes" $ do
             let res = checkout
@@ -107,9 +100,9 @@ spec = do
         it "should not route if has wrong sub-path" $ do
             let
                 res = checkout []
-                                     userRejectRoute
-                                     ["api", "user", "55", "reject"]
-                                     "POST"
+                               userRejectRoute
+                               ["api", "user", "55", "reject"]
+                               "POST"
             (fst res) `shouldBe` False
         it "should route to dynamic root route and get dynamic path" $ do
             let res = checkout [] dynamicRoute ["123"] "POST"
@@ -118,40 +111,19 @@ spec = do
     -- describe "route" $ do
     --     let responseOk =
     --             responseLBS status200 [("Content-Type", "text/html")] "Ok"
-    --         response400 = responseLBS status400
-    --                                   [("Content-Type", "text/html")]
-    --                                   "Not valid"
-    --         response404 = responseLBS status404
-    --                                   [("Content-Type", "text/html")]
-    --                                   "Not found"
-    --         response500 = responseLBS status500
-    --                                   [("Content-Type", "text/html")]
-    --                                   "Sorry"
+    --         response404 =
+    --             responseLBS status404 [("Content-Type", "text/html")] ""
     --         createAuthorRoute =
     --             PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
-
-    --         routes = [(createAuthorRoute, \_ _ -> pure responseOk)]
-    --         getBody res = do
-    --             let (_, _, f) = responseToStream res
-    --             f $ \streamingBody -> do
-    --                 builderRef <- newIORef mempty
-    --                 let add :: Builder -> IO ()
-    --                     add b = atomicModifyIORef builderRef
-    --                         $ \builder -> (builder `mappend` b, ())
-    --                     flush :: IO ()
-    --                     flush = return ()
-    --                 streamingBody add flush
-    --                 fmap (L.toStrict . toLazyByteString) $ readIORef builderRef
+    --         routes = [(createAuthorRoute, pure responseOk)]
     --     it "should not call handler on incorrect request" $ do
     --         res <- route routes defaultRequest
-    --         getBody res `shouldReturn` "Not found"
     --         responseStatus res `shouldBe` status404
     --     it "should call create author handler on POST /api/author" $ do
     --         let authorReq = defaultRequest { requestMethod = "POST"
     --                                        , pathInfo      = ["api", "author"]
     --                                        }
     --         res <- route routes authorReq
-    --         getBody res `shouldReturn` "Ok"
     --         responseStatus res `shouldBe` status200
     --     it "should not call create author handler on methods other than POST"
     --         $ do
@@ -159,31 +131,27 @@ spec = do
     --                                              , pathInfo = ["api", "author"]
     --                                              }
     --               res <- route routes authorReq
-    --               getBody res `shouldReturn` "Not found"
     --               responseStatus res `shouldBe` status404
     --     it "should not call create author handler on incorrect path" $ do
     --         let authorReq = defaultRequest { requestMethod = "POST"
     --                                        , pathInfo      = ["api", "authors"]
     --                                        }
     --         res <- route routes authorReq
-    --         getBody res `shouldReturn` "Not found"
     --         responseStatus res `shouldBe` status404
     --     it "should not call any handlers and respond with 404 on empty routes"
     --         $ do
     --               res <- route [] defaultRequest
-    --               getBody res `shouldReturn` "Not found"
     --               responseStatus res `shouldBe` status404
     --     it "should call first handler on duplicate routes" $ do
     --         let routesDuplicate =
-    --                 [ (createAuthorRoute, \_ _ -> pure responseOk)
+    --                 [ (createAuthorRoute, pure responseOk)
     --                 , ( createAuthorRoute
-    --                   , \_ _ -> error "Second route should not be called"
+    --                   , error "Second route should not be called"
     --                   )
     --                 ]
     --             authorReq = defaultRequest { requestMethod = "POST"
     --                                        , pathInfo      = ["api", "author"]
     --                                        }
     --         res <- route routesDuplicate authorReq
-    --         getBody res `shouldReturn` "Ok"
     --         responseStatus res `shouldBe` status200
 

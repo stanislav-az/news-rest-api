@@ -150,10 +150,8 @@ routes =
     , checkPermission (Owner isAuthorOfNews) publishNewsHandler
     )
   , (getCommentariesListRoute, listCommentariesHandler)
-  , ( MethodRoute "GET"
-    , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
-    )
-  ]
+  , (MethodRoute "GET"       , okResponseWithJSONBody "Ok")
+  ] ++ listRoutes ++ createRoutes ++ removeRoutes
 
 listRoutes :: [(Route, Handler)]
 listRoutes =

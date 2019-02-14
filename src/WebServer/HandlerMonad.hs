@@ -81,7 +81,7 @@ okResponse :: (MonadHTTP m) => m Response
 okResponse = respond HTTP.status204 [] ""
 
 okResponseWithJSONBody :: (MonadHTTP m) => BC.ByteString -> m Response
-okResponseWithJSONBody = respond HTTP.status200 []
+okResponseWithJSONBody = respond HTTP.status200 [("Content-Type", "application/json")]
 
 serverErrorResponse :: (MonadHTTP m) => m Response
 serverErrorResponse = respond HTTP.status500 [] ""

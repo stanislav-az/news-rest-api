@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module WebServer.MonadDatabase where
 
 import qualified WebServer.Database            as D

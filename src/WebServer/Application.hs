@@ -5,16 +5,19 @@ module WebServer.Application where
 import           Network.Wai
 import           WebServer.Router
 import           WebServer.HandlerClass
+import           WebServer.HandlerMonad
 import           Helpers
-import           Routes
 import           Network.HTTP.Types
 import           Data.List                      ( intersperse )
 
-app :: Application
-app req respond = route routes req >>= respond
+newsServer
+  :: [(Route, b)]
+  -> (Request -> DynamicPathsMap -> b -> IO Response)
+  -> Application
+newsServer rs runH req respond = route rs req runH >>= respond
 
-logging :: Middleware
-logging app req respond = app
+withLogging :: Middleware
+withLogging app req respond = app
   req
   (\res -> do
     let status = texify $ statusCode $ responseStatus res

@@ -48,8 +48,6 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - news-rest-api
-    default-extensions:
-    - OverloadedStrings
 
 tests:
   news-rest-api-test:
@@ -64,3 +62,5 @@ tests:
     - hspec
     - tasty
     - tasty-hspec
+    - containers
+    - hspec-wai
