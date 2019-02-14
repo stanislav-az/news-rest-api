@@ -15,6 +15,8 @@ import           Control.Monad.Except
 import           Control.Monad.IO.Class
 import           Network.Wai
 import           WebServer.HandlerClass
+import           WebServer.MonadDatabase
+import           WebServer.UrlParser.Pagination
 
 -- dynamic path information type and value pairs
 type DynamicPathsMap = [(T.Text, T.Text)]
@@ -22,7 +24,7 @@ type DynamicPathsMap = [(T.Text, T.Text)]
 type Handler = HandlerMonad Response
 
 data HandlerEnv = HandlerEnv {
-    hConfig :: C.Config,
+    hMaxLimit :: Limit,
     hDynamicPathsMap :: DynamicPathsMap,
     hRequest :: Request,
     hConnection :: PSQL.Connection
@@ -34,27 +36,33 @@ newtype HandlerMonad a = HandlerMonad {runHandlerMonad :: ReaderT HandlerEnv (Ex
   deriving (Functor, Applicative, Monad, MonadIO, MonadReader HandlerEnv, MonadError HandlerError)
 
 runHandler
-  :: C.Config
+  :: Limit
   -> DynamicPathsMap
   -> Request
   -> PSQL.Connection
   -> HandlerMonad a
   -> IO (Either HandlerError a)
-runHandler conf dpMap req conn =
+runHandler mLimit dpMap req conn =
   runExceptT . (`runReaderT` env) . runHandlerMonad
  where
-  env = HandlerEnv { hConfig          = conf
+  env = HandlerEnv { hMaxLimit        = mLimit
                    , hDynamicPathsMap = dpMap
                    , hRequest         = req
                    , hConnection      = conn
                    }
 
-instance MonadDatabase HandlerMonad where
-  type Gateway HandlerMonad = PSQL.Connection
-  select c p = liftIO $ select c p
-  selectById c i = liftIO $ selectById c i
-  delete p c i = liftIO $ delete p c i
-  insert c o = liftIO $ insert c o
+-- instance MonadDatabase HandlerMonad where
+--   type Gateway HandlerMonad = PSQL.Connection
+--   select c p = liftIO $ select c p
+--   selectById c i = liftIO $ selectById c i
+--   delete p c i = liftIO $ delete p c i
+--   insert c o = liftIO $ insert c o
+
+instance PersistentUser HandlerMonad where
+  selectUsers    = liftIO . selectUsers
+  selectUserById = liftIO . selectUserById
+  deleteUserById = liftIO . deleteUserById
+  insertUser     = liftIO . insertUser
 
 instance MonadHTTP HandlerMonad where
   getRequestBody = liftIO . getRequestBody

@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Handlers where
@@ -23,6 +22,7 @@ import           Database.Queries.News
 import           Database.Queries.Commentary
 import           Helpers
 import           WebServer.HandlerMonad
+import           WebServer.MonadDatabase
 import           WebServer.HandlerClass
 import           WebServer.Error
 import qualified WebServer.Database            as D
@@ -36,8 +36,20 @@ import           Control.Monad.Except
 import           Data.Maybe                     ( fromMaybe )
 import qualified Data.Text                     as T
 
-create :: (FromJSON a, D.Fit b c, ToJSON d) => (a -> b) -> (c -> d) -> Handler
-create requestToEntity entityToResponse = do
+
+
+create
+  :: ( MonadReader HandlerEnv m
+     , MonadError HandlerError m
+     , MonadHTTP m
+     , ToJSON a1
+     , FromJSON t
+     )
+  => Inserter t1 m a
+  -> (t -> t1)
+  -> (a -> a1)
+  -> m Response
+create inserter requestToEntity entityToResponse = do
   req  <- asks hRequest
   conn <- asks hConnection
   body <- getRequestBody req
@@ -45,33 +57,41 @@ create requestToEntity entityToResponse = do
   either (throwError . ParseError) (createEntity conn) createEntityData
  where
   createEntity conn entityData = do
-    eEntity <- insert conn (requestToEntity entityData)
+    eEntity <- inserter $ requestToEntity entityData
     entity  <- either (throwError . PSQLError) pure eEntity
     let entityJSON = encode $ entityToResponse entity
     okResponseWithJSONBody entityJSON
 
-list :: (D.Persistent a, ToJSON b) => (a -> b) -> Handler
-list entityToResponse = do
-  conn     <- asks hConnection
-  conf     <- asks hConfig
+list
+  :: ( MonadReader HandlerEnv m
+     , MonadError HandlerError m
+     , MonadHTTP m
+     , ToJSON b
+     )
+  => Selector m a
+  -> (a -> b)
+  -> m Response
+list selector entityToResponse = do
   req      <- asks hRequest
-  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  maxLimit <- asks hMaxLimit
   let pagination = getLimitOffset maxLimit req
-  eEntities <- select conn pagination
+  eEntities <- selector pagination
   entities  <- either (throwError . PSQLError) pure eEntities
   let responseEntities  = entityToResponse <$> entities
       printableEntities = encode responseEntities
   okResponseWithJSONBody printableEntities
 
-remove :: (D.Persistent e) => Proxy e -> Handler
-remove this = do
+remove
+  :: (MonadReader HandlerEnv m, MonadError HandlerError m, MonadHTTP m)
+  => Deleter m
+  -> m Response
+remove deleter = do
   dpMap    <- asks hDynamicPathsMap
-  conn     <- asks hConnection
   entityId <- either throwParseError pure $ getIdFromUrl dpMap
   if entityId == 0
     then throwError Forbidden
     else do
-      res <- delete this conn entityId
+      res <- deleter entityId
       either (throwError . PSQLError) pure res
       okResponse
 
@@ -162,10 +182,9 @@ publishNewsHandler = do
 listCommentariesHandler :: Handler
 listCommentariesHandler = do
   conn     <- asks hConnection
-  conf     <- asks hConfig
   req      <- asks hRequest
   dpMap    <- asks hDynamicPathsMap
-  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  maxLimit <- asks hMaxLimit
   let pagination = getLimitOffset maxLimit req
   newsId        <- either throwParseError pure $ getIdFromUrl dpMap
   eCommentaries <- liftIO $ E.try $ selectCommentariesByNewsId conn
@@ -199,10 +218,9 @@ createCommentaryHandler = do
 
 searchNews :: Handler
 searchNews = do
-  conf     <- asks hConfig
-  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
   conn     <- asks hConnection
   req      <- asks hRequest
+  maxLimit <- asks hMaxLimit
   dpMap    <- asks hDynamicPathsMap
   let pagination = getLimitOffset maxLimit req
       sorter     = getSorter req
@@ -218,8 +236,7 @@ searchNews = do
 
 listNews :: Handler
 listNews = do
-  conf     <- asks hConfig
-  maxLimit <- liftIO $ Limit <$> C.get conf "pagination.max_limit"
+  maxLimit <- asks hMaxLimit
   conn     <- asks hConnection
   req      <- asks hRequest
   let pagination = getLimitOffset maxLimit req

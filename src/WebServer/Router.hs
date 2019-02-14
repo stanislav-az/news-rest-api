@@ -15,6 +15,7 @@ import           WebServer.HandlerClass
 import           WebServer.HandlerMonad
 import           Control.Exception              ( bracket )
 import           Control.Monad.Except
+import           WebServer.UrlParser.Pagination
 
 data Route = PathRoute T.Text Route | DynamicRoute T.Text Route | MethodRoute BS.ByteString
 
@@ -36,11 +37,7 @@ checkout dpMap (PathRoute s route) (x : xs) method
 checkout dpMap (DynamicRoute s route) (x : xs) method =
   checkout ((s, x) : dpMap) route xs method
 
-route
-  :: (MonadHTTP m, MonadLogger m, MonadDatabase m)
-  => [(Route, Handler)]
-  -> Request
-  -> m Response
+route :: [(Route, Handler)] -> Request -> IO Response
 route [] req = notFoundResponse
 route (h : hs) req | isCorrect = liftIO runHAndCatchE
                    | otherwise = route hs req
@@ -51,7 +48,8 @@ route (h : hs) req | isCorrect = liftIO runHAndCatchE
   path               = pathInfo req
   method             = requestMethod req
   runHAndCatchE      = do
-    conf <- C.loadConfig
-    res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
-      runHandler conf dpMap req conn $ catchError handler manageHandlerError
+    conf     <- C.loadConfig
+    maxLimit <- Limit <$> C.get conf "pagination.max_limit"
+    res      <- bracket (DC.connect conf) PSQL.close $ \conn ->
+      runHandler maxLimit dpMap req conn $ catchError handler manageHandlerError
     either (\e -> (logError $ texify e) >> serverErrorResponse) pure res

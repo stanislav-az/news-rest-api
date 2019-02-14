@@ -16,6 +16,7 @@ import           Database.Models.User
 import           Database.Models.Tag
 import           Database.Models.Commentary
 import           Data.Proxy
+import           WebServer.MonadDatabase
 import           Serializer.User                ( requestToUser
                                                 , userToResponse
                                                 )
@@ -139,44 +140,58 @@ getCommentariesListRoute =
 
 routes :: [(Route, Handler)]
 routes =
-  [ ( createAuthorRoute
-    , checkPermission Admin $ create requestToAuthor authorToResponse
-    )
-  , (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
-  , (getAuthorsListRoute, checkPermission Admin $ list authorToResponse)
-  , (deleteAuthorRoute, checkPermission Admin $ remove (Proxy :: Proxy Author))
-  , (createUserRoute    , create requestToUser userToResponse)
-  , (getUsersListRoute  , list userToResponse)
-  , (deleteUserRoute, checkPermission Admin $ remove (Proxy :: Proxy User))
-  , (createTagRoute, checkPermission Admin $ create requestToTag tagToResponse)
+  [ (updateAuthorRoute, checkPermission Admin updateAuthorHandler)
   , (updateTagRoute     , checkPermission Admin updateTagHandler)
-  , (deleteTagRoute, checkPermission Admin $ remove (Proxy :: Proxy Tag))
-  , (getTagsListRoute   , list tagToResponse)
-  , ( createCategoryRoute
-    , checkPermission Admin $ create requestToCategory categoryNestedToResponse
-    )
   , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
-  , ( deleteCategoryRoute
-    , checkPermission Admin $ remove (Proxy :: Proxy Category)
-    )
-  , (getCategoriesListRoute, list categoryNestedToResponse)
-  , (getNewsListRoute      , listNews)
-  , (searchNewsRoute      , searchNews)
-  , (createNewsDraftRoute  , create requestToNews newsToResponse)
+  , (getNewsListRoute   , listNews)
+  , (searchNewsRoute    , searchNews)
   , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
   , ( publishNewsRoute
     , checkPermission (Owner isAuthorOfNews) publishNewsHandler
     )
-  , ( deleteNewsRoute
-    , checkPermission (Owner isAuthorOfNews) $ remove (Proxy :: Proxy News)
-    )
-  , (createCommentaryRoute   , createCommentaryHandler)
   , (getCommentariesListRoute, listCommentariesHandler)
-  , ( deleteCommentRoute
-    , checkPermission (Owner isAuthorOfCommentary)
-      $ remove (Proxy :: Proxy Commentary)
-    )
   , ( MethodRoute "GET"
     , pure $ responseLBS status200 [("Content-Type", "text/html")] "Ok"
     )
   ]
+
+listRoutes :: [(Route, Handler)]
+listRoutes =
+  [
+  -- , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)
+   (getUsersListRoute, list selectUsers userToResponse)
+  -- , (getTagsListRoute , list selectTags tagToResponse)
+  -- , (getCategoriesListRoute, list categoryNestedToResponse)
+                                                       ]
+createRoutes :: [(Route, Handler)]
+createRoutes =
+  [
+  -- ( createAuthorRoute
+--     , checkPermission Admin $ create requestToAuthor authorToResponse
+--     )
+   (createUserRoute, create insertUser requestToUser userToResponse)
+--   , (createTagRoute , checkPermission Admin $ create requestToTag tagToResponse)
+--   , ( createCategoryRoute
+--     , checkPermission Admin $ create requestToCategory categoryNestedToResponse
+--     )
+--   , (createNewsDraftRoute , create requestToNews newsToResponse)
+--   , (createCommentaryRoute, createCommentaryHandler)
+                                                                    ]
+
+removeRoutes :: [(Route, Handler)]
+removeRoutes =
+  [
+  -- (deleteAuthorRoute, checkPermission Admin $ remove (Proxy :: Proxy Author))
+   (deleteUserRoute, checkPermission Admin $ remove deleteUserById)
+--   , (deleteTagRoute   , checkPermission Admin $ remove (Proxy :: Proxy Tag))
+--   , ( deleteCategoryRoute
+--     , checkPermission Admin $ remove (Proxy :: Proxy Category)
+--     )
+--   , ( deleteNewsRoute
+--     , checkPermission (Owner isAuthorOfNews) $ remove (Proxy :: Proxy News)
+--     )
+--   , ( deleteCommentRoute
+--     , checkPermission (Owner isAuthorOfCommentary)
+--       $ remove (Proxy :: Proxy Commentary)
+--     )
+                                                                   ]
