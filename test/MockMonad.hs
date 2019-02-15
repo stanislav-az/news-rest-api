@@ -20,10 +20,12 @@ import           Debug.Trace
 import qualified Data.Map.Strict               as M
 import           Data.Time
 import qualified Data.ByteString.Lazy.Char8    as BC
+import qualified Data.Text                     as T
 
 data MockIO = MockIO {
   mockDB :: MockDB,
-  mockReqBody :: BC.ByteString
+  mockReqBody :: BC.ByteString,
+  mockLog :: [MockLog]
 } deriving Show
 
 type MockHandler = MockMonad Response
@@ -32,6 +34,8 @@ newtype MockMonad a = MockMonad {
   runMockMonad :: StateT MockIO (ReaderT HM.HandlerEnv (Except HM.HandlerError)) a
 } deriving (Functor, Applicative, Monad, MonadReader HM.HandlerEnv, MonadError HM.HandlerError, MonadState MockIO)
 
+data MockLog = Debug T.Text | Info T.Text | Warn T.Text | Error T.Text
+  deriving Show
 
 runMock
   :: MockDB
@@ -50,11 +54,17 @@ runMock db body maxLimit dpMap req conn =
                     , hRequest         = req
                     , hConnection      = conn
                     }
-  e = MockIO { mockDB = db, mockReqBody = body }
+  e = MockIO { mockDB = db, mockReqBody = body, mockLog = [] }
 
 instance HC.MonadHTTP MockMonad where
   getRequestBody _ = gets mockReqBody
   respond s h b = pure $ responseLBS s h b
+
+instance HC.MonadLogger MockMonad where
+  logDebug e = modify $ \s@MockIO {..} -> s { mockLog = Debug e : mockLog }
+  logInfo e = modify $ \s@MockIO {..} -> s { mockLog = Info e : mockLog }
+  logWarn e = modify $ \s@MockIO {..} -> s { mockLog = Warn e : mockLog }
+  logError e = modify $ \s@MockIO {..} -> s { mockLog = Error e : mockLog }
 
 data MockDB = DB (M.Map Integer User) (M.Map Integer Author) deriving Show
 

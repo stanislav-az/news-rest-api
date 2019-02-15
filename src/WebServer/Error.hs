@@ -15,7 +15,8 @@ import           Control.Monad.IO.Class
 manageHandlerError :: (MonadHTTP m, MonadLogger m) => HandlerError -> m Response
 manageHandlerError e@(ParseError _) = logWarn (texify e) >> badRequestResponse
 manageHandlerError e@Forbidden =
-  logWarn "Attempted removing admin user or default category"
+  logWarn
+      "(Authorization failed)/(Attempted removing admin user or default entity)"
     >> notFoundResponse
 manageHandlerError e@(PSQLError _) =
   logError (texify e) >> unprocessableEntityResponse

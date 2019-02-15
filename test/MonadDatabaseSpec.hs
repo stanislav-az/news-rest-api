@@ -12,6 +12,7 @@ import           Test.Hspec.Wai.Matcher
 import           MockRoutes
 import           WebServer.Application
 import           WebServer.HandlerMonad
+import           WebServer.HandlerClass
 import           Network.Wai
 import           MockMonad
 import qualified Config                        as C
@@ -25,6 +26,7 @@ import qualified Data.Map.Strict               as M
 import           Database.Models.User
 import           Serializer.User                ( userToResponse )
 import           Data.Aeson
+import           WebServer.Error
 
 mockApp :: IO Application
 mockApp = pure $ newsServer mockRoutes runMockHandler
@@ -97,9 +99,11 @@ runMockHandler :: Request -> DynamicPathsMap -> MockHandler -> IO Response
 runMockHandler req dpMap handler = do
   conf <- C.loadConfig
   body <- strictRequestBody req
-  res  <- bracket (DC.connect conf) PSQL.close
-    $ \conn -> pure $ runMock database body (Limit 3) dpMap req conn handler
-  either (const serverErrorResponse) pure res
+  res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
+    pure $ runMock database body (Limit 3) dpMap req conn $ catchError
+      handler
+      manageHandlerError
+  either (\e -> (logError $ texify e) >> serverErrorResponse) pure res
 
 spec :: Spec
 spec = with mockApp $ do
@@ -146,3 +150,6 @@ spec = with mockApp $ do
     it "responds with 204 with correct authorization header"
       $ request "DELETE" "/api/users/1" [("Authorization", "5")] ""
       `shouldRespondWith` 204
+    it "responds with 422 with incorrect user id"
+      $ request "DELETE" "/api/users/66" [("Authorization", "5")] ""
+      `shouldRespondWith` 422

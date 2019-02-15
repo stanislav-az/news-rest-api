@@ -8,6 +8,7 @@ import           WebServer.HandlerClass
 import           WebServer.MonadDatabase
 import           WebServer.Database
 import           Control.Monad.Reader
+import           Control.Monad.Except
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
 import           Database.Models.User
@@ -20,11 +21,12 @@ import qualified Network.HTTP.Types            as HTTP
 data Permission m = Admin
     | Owner (User -> Integer -> m Bool)
 
+
 checkPermission
-  :: (MonadReader HandlerEnv m, PersistentUser m, MonadHTTP m)
+  :: (MonadReader HandlerEnv m, PersistentUser m, MonadError HandlerError m)
   => Permission m
-  -> m Response
-  -> m Response
+  -> m a
+  -> m a
 checkPermission Admin handler = do
   req  <- asks hRequest
   user <- getUser req
@@ -34,18 +36,18 @@ checkPermission (Owner f) handler = do
   user <- getUser req
   checkUserOwner user f handler
 
-checkUserAdmin :: MonadHTTP m => Either a User -> m Response -> m Response
-checkUserAdmin (Left _) _ = notFoundResponse
+checkUserAdmin :: MonadError HandlerError m => Either a User -> m a1 -> m a1
+checkUserAdmin (Left _) _ = throwError Forbidden
 checkUserAdmin (Right user) handler | userIsAdmin user = handler
-                                    | otherwise        = notFoundResponse
+                                    | otherwise        = throwError Forbidden
 
 checkUserOwner
-  :: (MonadHTTP m, MonadReader HandlerEnv m)
+  :: (MonadError HandlerError m, MonadReader HandlerEnv m)
   => Either a User
   -> (User -> Integer -> m Bool)
-  -> m Response
-  -> m Response
-checkUserOwner (Left _) _ _ = notFoundResponse
+  -> m a1
+  -> m a1
+checkUserOwner (Left _) _ _ = throwError Forbidden
 checkUserOwner (Right user) f handler
   | userIsAdmin user = handler
   | otherwise = do
@@ -54,7 +56,7 @@ checkUserOwner (Right user) f handler
     let checkOwner = maybe (pure False) (f user) objId
         objId      = getObjectId dpMap
     isOwner <- checkOwner
-    if isOwner then handler else notFoundResponse
+    if isOwner then handler else throwError Forbidden
 
 getObjectId :: DynamicPathsMap -> Maybe Integer
 getObjectId dpMap = objId >>= eitherToMaybe
