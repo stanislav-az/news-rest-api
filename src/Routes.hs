@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Routes where
 
 import           WebServer.Router
@@ -9,12 +11,15 @@ import           Middlewares
 import           Database.Queries.News
 import           Database.Queries.Commentary
 import           WebServer.HandlerMonad
+import           WebServer.HandlerClass
 import           Database.Models.Author
 import           Database.Models.News
 import           Database.Models.Category
 import           Database.Models.User
 import           Database.Models.Tag
 import           Database.Models.Commentary
+import           Control.Monad.Reader
+import           Control.Monad.Except
 import           Data.Proxy
 import           WebServer.MonadDatabase
 import           Serializer.User                ( requestToUser
@@ -141,19 +146,28 @@ getCommentariesListRoute =
 routes :: [(Route, Handler)]
 routes =
   [ (updateAuthorRoute, checkPermission Admin updateAuthorHandler)
-  , (updateTagRoute     , checkPermission Admin updateTagHandler)
-  , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
-  , (getNewsListRoute   , listNews)
-  , (searchNewsRoute    , searchNews)
-  , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
-  , ( publishNewsRoute
-    , checkPermission (Owner isAuthorOfNews) publishNewsHandler
-    )
-  , (getCommentariesListRoute, listCommentariesHandler)
-  , (MethodRoute "GET"       , okResponseWithJSONBody "Ok")
-  ] ++ listRoutes ++ createRoutes ++ removeRoutes
+    , (updateTagRoute     , checkPermission Admin updateTagHandler)
+    , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
+    , (getNewsListRoute   , listNews)
+    , (searchNewsRoute    , searchNews)
+    , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
+    , ( publishNewsRoute
+      , checkPermission (Owner isAuthorOfNews) publishNewsHandler
+      )
+    , (getCommentariesListRoute, listCommentariesHandler)
+    , (MethodRoute "GET"       , okResponseWithJSONBody "{\"ok\": true}")
+    ]
+    ++ listRoutes
+    ++ createRoutes
+    ++ removeRoutes
 
-listRoutes :: [(Route, Handler)]
+listRoutes
+  :: ( MonadReader HandlerEnv m
+     , MonadError HandlerError m
+     , MonadHTTP m
+     , PersistentUser m
+     )
+  => [(Route, m Response)]
 listRoutes =
   [
   -- , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)

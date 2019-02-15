@@ -9,8 +9,8 @@ import           Control.Monad.Reader
 import qualified WebServer.HandlerMonad        as HM
 import qualified WebServer.HandlerClass        as HC
 import qualified WebServer.MonadDatabase       as MD
-import           WebServer.MonadDatabase        ( PersistentUser(..) )
 import qualified WebServer.Database            as D
+import qualified Database.PostgreSQL.Simple    as PSQL
 import           Network.Wai
 import           Database.Models.Author
 import           Database.Models.User
@@ -18,9 +18,11 @@ import           Data.Proxy
 import           Debug.Trace
 import qualified Data.Map.Strict               as M
 import           Data.Time
+import qualified Data.ByteString.Lazy.Char8    as BC
 
 data MockIO = MockIO {
-  mockDB :: MockDB
+  mockDB :: MockDB,
+  mockReqBody :: BC.ByteString
 } deriving Show
 
 type MockHandler = MockMonad Response
@@ -30,7 +32,16 @@ newtype MockMonad a = MockMonad {
 } deriving (Functor, Applicative, Monad, MonadReader HM.HandlerEnv, MonadError HM.HandlerError, MonadState MockIO)
 
 
-runMock db maxLimit dpMap req conn =
+runMock
+  :: MockDB
+  -> BC.ByteString
+  -> D.Limit
+  -> HM.DynamicPathsMap
+  -> Request
+  -> PSQL.Connection
+  -> MockMonad a
+  -> Either HM.HandlerError a
+runMock db body maxLimit dpMap req conn =
   runExcept . (`runReaderT` r) . (`evalStateT` e) . runMockMonad
  where
   r = HM.HandlerEnv { hMaxLimit        = maxLimit
@@ -38,7 +49,7 @@ runMock db maxLimit dpMap req conn =
                     , hRequest         = req
                     , hConnection      = conn
                     }
-  e = MockIO { mockDB = db }
+  e = MockIO { mockDB = db, mockReqBody = body }
 
 data MockDB = DB (M.Map Integer User) (M.Map Integer Author) deriving Show
 
@@ -56,7 +67,7 @@ class Unwraped a where
 instance Unwraped User where
   unwrap (DB us _) = us
 
-instance PersistentUser MockMonad where
+instance MD.PersistentUser MockMonad where
   selectUsers p = Right . select p <$> gets mockDB
   selectUserById id = do
     mdb <- gets mockDB
@@ -77,6 +88,6 @@ sometime = LocalTime
   , localTimeOfDay = TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
   }
 
--- instance HC.MonadHTTP MockMonad where
---   getRequestBody = strictRequestBody
---   respond s h b = pure $ responseLBS s h b
+instance HC.MonadHTTP MockMonad where
+  getRequestBody _ = gets mockReqBody
+  respond s h b = pure $ responseLBS s h b
