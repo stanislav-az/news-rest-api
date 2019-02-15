@@ -1,8 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Middlewares where
 
 import           WebServer.HandlerMonad
+import           WebServer.HandlerClass
+import           WebServer.MonadDatabase
 import           WebServer.Database
 import           Control.Monad.Reader
 import qualified Database.PostgreSQL.Simple    as PSQL
@@ -14,40 +17,44 @@ import           Text.Read
 import           Helpers
 import qualified Network.HTTP.Types            as HTTP
 
-data Permission = Admin
-    | Owner (PSQL.Connection -> User -> Integer -> IO Bool)
+data Permission m = Admin
+    | Owner (User -> Integer -> m Bool)
 
-checkPermission :: Permission -> Handler -> Handler
+checkPermission
+  :: (MonadReader HandlerEnv m, PersistentUser m, MonadHTTP m)
+  => Permission m
+  -> m Response
+  -> m Response
 checkPermission Admin handler = do
   req  <- asks hRequest
-  conn <- asks hConnection
-  user <- liftIO $ getUser conn req
+  user <- getUser req
   checkUserAdmin user handler
 checkPermission (Owner f) handler = do
   req  <- asks hRequest
-  conn <- asks hConnection
-  user <- liftIO $ getUser conn req
+  user <- getUser req
   checkUserOwner user f handler
 
-checkUserAdmin :: Maybe User -> Handler -> Handler
-checkUserAdmin Nothing     _       = hasNoPermissionResponse
-checkUserAdmin (Just user) handler = handler
+checkUserAdmin :: MonadHTTP m => Either a User -> m Response -> m Response
+checkUserAdmin (Left _) _ = notFoundResponse
+checkUserAdmin (Right user) handler | userIsAdmin user = handler
+                                    | otherwise        = notFoundResponse
 
 checkUserOwner
-  :: Maybe User
-  -> (PSQL.Connection -> User -> Integer -> IO Bool)
-  -> Handler
-  -> Handler
-checkUserOwner Nothing _ _ = hasNoPermissionResponse
-checkUserOwner (Just user) f handler
+  :: (MonadHTTP m, MonadReader HandlerEnv m)
+  => Either a User
+  -> (User -> Integer -> m Bool)
+  -> m Response
+  -> m Response
+checkUserOwner (Left _) _ _ = notFoundResponse
+checkUserOwner (Right user) f handler
   | userIsAdmin user = handler
   | otherwise = do
     dpMap <- asks hDynamicPathsMap
     conn  <- asks hConnection
-    let checkOwner = maybe (pure False) (f conn user) objId
+    let checkOwner = maybe (pure False) (f user) objId
         objId      = getObjectId dpMap
-    isOwner <- liftIO checkOwner
-    if isOwner then handler else hasNoPermissionResponse
+    isOwner <- checkOwner
+    if isOwner then handler else notFoundResponse
 
 getObjectId :: DynamicPathsMap -> Maybe Integer
 getObjectId dpMap = objId >>= eitherToMaybe
@@ -59,9 +66,7 @@ getAuthHeader req =
       bsId    = lookup "Authorization" headers
   in  bsId >>= (readMaybe . BS.unpack)
 
-getUser :: PSQL.Connection -> Request -> IO (Maybe User)
-getUser conn req = maybe (pure Nothing) (selectById conn) $ getAuthHeader req
+getUser :: PersistentUser f => Request -> f (Either String User)
+getUser req = maybe (pure $ Left "No authorization header") selectUserById
+  $ getAuthHeader req
 
-hasNoPermissionResponse :: (Applicative m) => m Response
-hasNoPermissionResponse =
-  pure $ responseLBS HTTP.status404 [("Content-Type", "plain/text")] "Not Found"

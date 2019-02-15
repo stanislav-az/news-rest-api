@@ -8,8 +8,6 @@ import           Network.Wai
 import           Network.HTTP.Types
 import           Handlers
 import           Middlewares
-import           Database.Queries.News
-import           Database.Queries.Commentary
 import           WebServer.HandlerMonad
 import           WebServer.HandlerClass
 import           Database.Models.Author
@@ -175,7 +173,13 @@ listRoutes =
   -- , (getTagsListRoute , list selectTags tagToResponse)
   -- , (getCategoriesListRoute, list categoryNestedToResponse)
                                                        ]
-createRoutes :: [(Route, Handler)]
+createRoutes
+  :: ( MonadReader HandlerEnv m
+     , MonadError HandlerError m
+     , MonadHTTP m
+     , PersistentUser m
+     )
+  => [(Route, m Response)]
 createRoutes =
   [
   -- ( createAuthorRoute
@@ -190,7 +194,13 @@ createRoutes =
 --   , (createCommentaryRoute, createCommentaryHandler)
                                                                     ]
 
-removeRoutes :: [(Route, Handler)]
+removeRoutes
+  :: ( MonadReader HandlerEnv m
+     , MonadError HandlerError m
+     , MonadHTTP m
+     , PersistentUser m
+     )
+  => [(Route, m Response)]
 removeRoutes =
   [
   -- (deleteAuthorRoute, checkPermission Admin $ remove (Proxy :: Proxy Author))
@@ -202,8 +212,8 @@ removeRoutes =
 --   , ( deleteNewsRoute
 --     , checkPermission (Owner isAuthorOfNews) $ remove (Proxy :: Proxy News)
 --     )
---   , ( deleteCommentRoute
---     , checkPermission (Owner isAuthorOfCommentary)
---       $ remove (Proxy :: Proxy Commentary)
---     )
+  -- , ( deleteCommentRoute
+  --   , checkPermission (Owner isAuthorOfCommentary)
+  --     $ remove (Proxy :: Proxy Commentary)
+  --   )
                                                                    ]

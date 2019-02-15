@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module MockMonad where
 
@@ -51,6 +52,10 @@ runMock db body maxLimit dpMap req conn =
                     }
   e = MockIO { mockDB = db, mockReqBody = body }
 
+instance HC.MonadHTTP MockMonad where
+  getRequestBody _ = gets mockReqBody
+  respond s h b = pure $ responseLBS s h b
+
 data MockDB = DB (M.Map Integer User) (M.Map Integer Author) deriving Show
 
 class Unwraped a where
@@ -61,19 +66,20 @@ class Unwraped a where
       l = fromIntegral limit
       o = fromIntegral offset
       xs = M.elems $ unwrap db
-  selectById :: Integer -> MockDB -> Maybe a
-  selectById id db = M.lookup id $ unwrap db
+  selectById :: Integer -> MockDB -> Either String a
+  selectById id db = maybe (Left "No such id") Right $ M.lookup id $ unwrap db
+  deleteById :: Proxy a -> Integer -> MockDB -> Either String ()
+  deleteById _ id db = if id `elem` keys then Right () else Left "No such id"
+      where
+        keys = M.keys (unwrap db :: M.Map Integer a)
 
 instance Unwraped User where
   unwrap (DB us _) = us
 
 instance MD.PersistentUser MockMonad where
   selectUsers p = Right . select p <$> gets mockDB
-  selectUserById id = do
-    mdb <- gets mockDB
-    let mbUser = selectById id mdb
-    pure $ maybe (Left "No such id") Right mbUser
-  deleteUserById _ = pure $ Right ()
+  selectUserById id = selectById id <$> gets mockDB
+  deleteUserById id = deleteById (Proxy :: Proxy User) id <$> gets mockDB
   insertUser UserRaw {..} = pure $ Right User { userId          = 1
                                               , userName        = userRawName
                                               , userSurname     = userRawSurname
@@ -88,6 +94,3 @@ sometime = LocalTime
   , localTimeOfDay = TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
   }
 
-instance HC.MonadHTTP MockMonad where
-  getRequestBody _ = gets mockReqBody
-  respond s h b = pure $ responseLBS s h b

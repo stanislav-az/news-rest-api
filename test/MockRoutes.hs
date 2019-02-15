@@ -16,5 +16,8 @@ import           Serializer.User                ( requestToUser
 
 mockRoutes :: [(Route, MockHandler)]
 mockRoutes =
-  (MethodRoute "GET", pure $ responseLBS HTTP.status200 [] "Ok") : listRoutes
+  (MethodRoute "GET", pure $ responseLBS HTTP.status200 [] "Ok")
+    :  listRoutes
+    ++ createRoutes
+    ++ removeRoutes
 

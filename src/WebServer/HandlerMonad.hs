@@ -57,6 +57,9 @@ runHandler mLimit dpMap req conn =
 --   selectById c i = liftIO $ selectById c i
 --   delete p c i = liftIO $ delete p c i
 --   insert c o = liftIO $ insert c o
+instance Authorization HandlerMonad where
+  isAuthorOfNews u i = liftIO $ isAuthorOfNews u i
+  isAuthorOfCommentary u i = liftIO $ isAuthorOfCommentary u i
 
 instance PersistentUser HandlerMonad where
   selectUsers    = liftIO . selectUsers
@@ -81,7 +84,8 @@ okResponse :: (MonadHTTP m) => m Response
 okResponse = respond HTTP.status204 [] ""
 
 okResponseWithJSONBody :: (MonadHTTP m) => BC.ByteString -> m Response
-okResponseWithJSONBody = respond HTTP.status200 [("Content-Type", "application/json")]
+okResponseWithJSONBody =
+  respond HTTP.status200 [("Content-Type", "application/json")]
 
 serverErrorResponse :: (MonadHTTP m) => m Response
 serverErrorResponse = respond HTTP.status500 [] ""

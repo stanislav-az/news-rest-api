@@ -7,11 +7,21 @@ import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Database.Models.User
 import           Database.Models.Tag
+import  qualified         Database.Queries.News as DQN
+import  qualified         Database.Queries.Commentary as DQC
 import           Data.Proxy
 
 type Selector m a = (D.Limit, D.Offset) -> m (Either String [a])
 type Deleter m = Integer -> m (Either String ())
 type Inserter b m a = b -> m (Either String a)
+
+class (Monad m) => Authorization m where
+  isAuthorOfNews :: User -> Integer -> m Bool
+  isAuthorOfCommentary :: User -> Integer -> m Bool
+
+instance Authorization IO where
+  isAuthorOfNews u i = withPSQLConnection $ \c -> DQN.isAuthorOfNews c u i
+  isAuthorOfCommentary u i = withPSQLConnection $ \c -> DQC.isAuthorOfCommentary c u i
 
 class (Monad m) => PersistentUser m where
   selectUsers :: (D.Limit, D.Offset) -> m (Either String [User])
