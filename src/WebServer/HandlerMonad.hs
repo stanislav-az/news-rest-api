@@ -96,3 +96,8 @@ badRequestResponse = respond HTTP.status400 [] ""
 -- The request was well-formed but was unable to be followed due to semantic errors.
 unprocessableEntityResponse :: (MonadHTTP m) => m Response
 unprocessableEntityResponse = respond HTTP.status422 [] ""
+
+instance PersistentAuthor HandlerMonad where
+  selectAuthors    = liftIO . selectAuthors
+  deleteAuthorById = liftIO . deleteAuthorById
+  insertAuthor     = liftIO . insertAuthor

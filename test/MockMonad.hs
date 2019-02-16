@@ -1,6 +1,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module MockMonad where
 
@@ -66,7 +68,7 @@ instance HC.MonadLogger MockMonad where
   logWarn e = modify $ \s@MockIO {..} -> s { mockLog = Warn e : mockLog }
   logError e = modify $ \s@MockIO {..} -> s { mockLog = Error e : mockLog }
 
-data MockDB = DB (M.Map Integer User) (M.Map Integer Author) deriving Show
+data MockDB = DB (M.Map Integer User) (M.Map Integer (Author, User)) deriving Show
 
 class Unwraped a where
   unwrap :: MockDB -> M.Map Integer a
@@ -104,3 +106,20 @@ sometime = LocalTime
   , localTimeOfDay = TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
   }
 
+instance Unwraped (Author, User) where
+  unwrap (DB _ as) = as
+
+instance MD.PersistentAuthor MockMonad where
+  selectAuthors p = Right . select p <$> gets mockDB
+  deleteAuthorById id =
+    deleteById (Proxy :: Proxy (Author, User)) id <$> gets mockDB
+  insertAuthor (AuthorRaw {..}, UserRaw {..}) = pure $ Right (author, user)
+   where
+    author = Author 1 1 authorRawDescription
+    user   = User { userId          = 1
+                  , userName        = userRawName
+                  , userSurname     = userRawSurname
+                  , userAvatar      = userRawAvatar
+                  , userDateCreated = sometime
+                  , userIsAdmin     = False
+                  }

@@ -164,47 +164,51 @@ listRoutes
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
+     , PersistentAuthor m
      )
   => [(Route, m Response)]
 listRoutes =
-  [
-  -- , (getAuthorsListRoute   , checkPermission Admin $ list authorToResponse)
-   (getUsersListRoute, list selectUsers userToResponse)
+  [ (getUsersListRoute, list selectUsers userToResponse)
+  , ( getAuthorsListRoute
+    , checkPermission Admin $ list selectAuthors authorToResponse
+    )
   -- , (getTagsListRoute , list selectTags tagToResponse)
   -- , (getCategoriesListRoute, list categoryNestedToResponse)
-                                                       ]
+  ]
+
 createRoutes
   :: ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
+     , PersistentAuthor m
      )
   => [(Route, m Response)]
 createRoutes =
-  [
-  -- ( createAuthorRoute
---     , checkPermission Admin $ create requestToAuthor authorToResponse
---     )
-   (createUserRoute, create insertUser requestToUser userToResponse)
+  [ (createUserRoute, create insertUser requestToUser userToResponse)
+  , ( createAuthorRoute
+    , checkPermission Admin
+      $ create insertAuthor requestToAuthor authorToResponse
+    )
 --   , (createTagRoute , checkPermission Admin $ create requestToTag tagToResponse)
 --   , ( createCategoryRoute
 --     , checkPermission Admin $ create requestToCategory categoryNestedToResponse
 --     )
 --   , (createNewsDraftRoute , create requestToNews newsToResponse)
 --   , (createCommentaryRoute, createCommentaryHandler)
-                                                                    ]
+  ]
 
 removeRoutes
   :: ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
+     , PersistentAuthor m
      )
   => [(Route, m Response)]
 removeRoutes =
-  [
-  -- (deleteAuthorRoute, checkPermission Admin $ remove (Proxy :: Proxy Author))
-   (deleteUserRoute, checkPermission Admin $ remove deleteUserById)
+  [ (deleteUserRoute  , checkPermission Admin $ remove deleteUserById)
+  , (deleteAuthorRoute, checkPermission Admin $ remove deleteAuthorById)
 --   , (deleteTagRoute   , checkPermission Admin $ remove (Proxy :: Proxy Tag))
 --   , ( deleteCategoryRoute
 --     , checkPermission Admin $ remove (Proxy :: Proxy Category)
@@ -216,4 +220,4 @@ removeRoutes =
   --   , checkPermission (Owner isAuthorOfCommentary)
   --     $ remove (Proxy :: Proxy Commentary)
   --   )
-                                                                   ]
+  ]

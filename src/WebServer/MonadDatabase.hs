@@ -6,9 +6,10 @@ import qualified Config                        as C
 import qualified Database.Connection           as DC
 import qualified Database.PostgreSQL.Simple    as PSQL
 import           Database.Models.User
+import           Database.Models.Author
 import           Database.Models.Tag
-import  qualified         Database.Queries.News as DQN
-import  qualified         Database.Queries.Commentary as DQC
+import qualified Database.Queries.News         as DQN
+import qualified Database.Queries.Commentary   as DQC
 import           Data.Proxy
 
 type Selector m a = (D.Limit, D.Offset) -> m (Either String [a])
@@ -21,7 +22,8 @@ class (Monad m) => Authorization m where
 
 instance Authorization IO where
   isAuthorOfNews u i = withPSQLConnection $ \c -> DQN.isAuthorOfNews c u i
-  isAuthorOfCommentary u i = withPSQLConnection $ \c -> DQC.isAuthorOfCommentary c u i
+  isAuthorOfCommentary u i =
+    withPSQLConnection $ \c -> DQC.isAuthorOfCommentary c u i
 
 class (Monad m) => PersistentUser m where
   selectUsers :: (D.Limit, D.Offset) -> m (Either String [User])
@@ -55,3 +57,16 @@ convertBool b | b         = pure $ Right ()
 
 withPSQLConnection :: (PSQL.Connection -> IO a) -> IO a
 withPSQLConnection = E.bracket (C.loadConfig >>= DC.connect) PSQL.close
+
+class (Monad m) => PersistentAuthor m where
+  selectAuthors :: Selector m (Author, User)
+  deleteAuthorById :: Deleter m
+  insertAuthor :: Inserter (AuthorRaw, UserRaw) m (Author, User)
+
+instance PersistentAuthor IO where
+  selectAuthors p =
+    withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
+  deleteAuthorById i = withPSQLConnection $ \c ->
+    E.try (D.delete (Proxy :: Proxy Author) c i) >>= either left convertBool
+  insertAuthor o = withPSQLConnection $ \c -> E.try (D.insert c o)
+    >>= either left (maybeRight "Could not insert object")
