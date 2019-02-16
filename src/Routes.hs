@@ -154,6 +154,11 @@ routes =
       )
     , (getCommentariesListRoute, listCommentariesHandler)
     , (MethodRoute "GET"       , okResponseWithJSONBody "{\"ok\": true}")
+    , ( deleteNewsRoute
+      , checkPermission (Owner isAuthorOfNews) $ remove deleteNewsById
+      )
+    , (createNewsDraftRoute , create insertNews requestToNews newsToResponse)
+    , (createCommentaryRoute, createCommentaryHandler)
     ]
     ++ listRoutes
     ++ createRoutes
@@ -165,6 +170,8 @@ listRoutes
      , MonadHTTP m
      , PersistentUser m
      , PersistentAuthor m
+     , PersistentTag m
+     , PersistentCategory m
      )
   => [(Route, m Response)]
 listRoutes =
@@ -172,8 +179,10 @@ listRoutes =
   , ( getAuthorsListRoute
     , checkPermission Admin $ list selectAuthors authorToResponse
     )
-  -- , (getTagsListRoute , list selectTags tagToResponse)
-  -- , (getCategoriesListRoute, list categoryNestedToResponse)
+  , (getTagsListRoute, list selectTags tagToResponse)
+  , ( getCategoriesListRoute
+    , list selectCategoriesNested categoryNestedToResponse
+    )
   ]
 
 createRoutes
@@ -182,6 +191,8 @@ createRoutes
      , MonadHTTP m
      , PersistentUser m
      , PersistentAuthor m
+     , PersistentTag m
+     , PersistentCategory m
      )
   => [(Route, m Response)]
 createRoutes =
@@ -190,12 +201,13 @@ createRoutes =
     , checkPermission Admin
       $ create insertAuthor requestToAuthor authorToResponse
     )
---   , (createTagRoute , checkPermission Admin $ create requestToTag tagToResponse)
---   , ( createCategoryRoute
---     , checkPermission Admin $ create requestToCategory categoryNestedToResponse
---     )
---   , (createNewsDraftRoute , create requestToNews newsToResponse)
---   , (createCommentaryRoute, createCommentaryHandler)
+  , ( createTagRoute
+    , checkPermission Admin $ create insertTag requestToTag tagToResponse
+    )
+  , ( createCategoryRoute
+    , checkPermission Admin
+      $ create insertCategory requestToCategory categoryNestedToResponse
+    )
   ]
 
 removeRoutes
@@ -204,20 +216,18 @@ removeRoutes
      , MonadHTTP m
      , PersistentUser m
      , PersistentAuthor m
+     , PersistentTag m
+     , PersistentCategory m
+     , PersistentCommentary m
+     , Authorization m
      )
   => [(Route, m Response)]
 removeRoutes =
-  [ (deleteUserRoute  , checkPermission Admin $ remove deleteUserById)
-  , (deleteAuthorRoute, checkPermission Admin $ remove deleteAuthorById)
---   , (deleteTagRoute   , checkPermission Admin $ remove (Proxy :: Proxy Tag))
---   , ( deleteCategoryRoute
---     , checkPermission Admin $ remove (Proxy :: Proxy Category)
---     )
---   , ( deleteNewsRoute
---     , checkPermission (Owner isAuthorOfNews) $ remove (Proxy :: Proxy News)
---     )
-  -- , ( deleteCommentRoute
-  --   , checkPermission (Owner isAuthorOfCommentary)
-  --     $ remove (Proxy :: Proxy Commentary)
-  --   )
+  [ (deleteUserRoute    , checkPermission Admin $ remove deleteUserById)
+  , (deleteAuthorRoute  , checkPermission Admin $ remove deleteAuthorById)
+  , (deleteTagRoute     , checkPermission Admin $ remove deleteTagById)
+  , (deleteCategoryRoute, checkPermission Admin $ remove deleteCategoryById)
+  , ( deleteCommentRoute
+    , checkPermission (Owner isAuthorOfCommentary) $ remove deleteCommentaryById
+    )
   ]

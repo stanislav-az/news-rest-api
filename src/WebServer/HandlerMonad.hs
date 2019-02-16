@@ -101,3 +101,20 @@ instance PersistentAuthor HandlerMonad where
   selectAuthors    = liftIO . selectAuthors
   deleteAuthorById = liftIO . deleteAuthorById
   insertAuthor     = liftIO . insertAuthor
+
+instance PersistentTag HandlerMonad where
+  selectTags    = liftIO . selectTags
+  deleteTagById = liftIO . deleteTagById
+  insertTag     = liftIO . insertTag
+
+instance PersistentCategory HandlerMonad where
+  selectCategoriesNested = liftIO . selectCategoriesNested
+  deleteCategoryById     = liftIO . deleteCategoryById
+  insertCategory         = liftIO . insertCategory
+
+instance PersistentNews HandlerMonad where
+  deleteNewsById = liftIO . deleteNewsById
+  insertNews     = liftIO . insertNews
+
+instance PersistentCommentary HandlerMonad where
+  deleteCommentaryById = liftIO . deleteCommentaryById

@@ -15,7 +15,7 @@ import           WebServer.Database
 data Tag = Tag {
   tagId :: Integer,
   tagName :: Text
-}
+} deriving Show
 
 instance Persistent Tag where
   tableName _ = "tags"
@@ -30,7 +30,4 @@ data TagRaw = TagRaw {
 }
 
 instance ToRow TagRaw where
-  toRow TagRaw {..} =
-    [ toField Default
-    , toField tagRawName
-    ]
+  toRow TagRaw {..} = [toField Default, toField tagRawName]

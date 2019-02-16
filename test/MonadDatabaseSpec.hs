@@ -26,8 +26,13 @@ import           Helpers
 import qualified Data.Map.Strict               as M
 import           Database.Models.User
 import           Database.Models.Author
+import           Database.Models.Tag
+import           Database.Models.Category
+import           Database.Models.Commentary
 import           Serializer.User                ( userToResponse )
 import           Serializer.Author              ( authorToResponse )
+import           Serializer.Tag                 ( tagToResponse )
+import           Serializer.Category            ( categoryNestedToResponse )
 import           Data.Aeson
 import           WebServer.Error
 
@@ -35,7 +40,11 @@ mockApp :: IO Application
 mockApp = pure $ newsServer mockRoutes runMockHandler
 
 database :: MockDB
-database = DB (mapify users) (mapify authors)
+database = DB (mapify users)
+              (mapify authors)
+              (mapify tags)
+              (mapify categories)
+              (mapify comments)
   where mapify = M.fromAscList . zip [1 ..]
 
 users :: [User]
@@ -129,6 +138,31 @@ authors =
     )
   ]
 
+tags :: [Tag]
+tags =
+  [ Tag { tagId = 1, tagName = "tag1" }
+  , Tag { tagId = 2, tagName = "tag2" }
+  , Tag { tagId = 3, tagName = "tag3" }
+  , Tag { tagId = 4, tagName = "tag4" }
+  ]
+
+categories :: [CategoryNested]
+categories =
+  [ Parent 1 "categoryNested1"
+  , Parent 2 "categoryNested2"
+  , Parent 3 "categoryNested3"
+  , Parent 4 "categoryNested4"
+  ]
+
+comments :: [Commentary]
+comments =
+  [ Commentary { commentaryId      = 1
+               , commentaryContent = "I am fascinated"
+               , commentaryNewsId  = 1
+               , commentaryUserId  = 1
+               }
+  ]
+
 userRaw :: UserRaw
 userRaw = UserRaw "Newuser" "Userovich" "http"
 
@@ -178,6 +212,34 @@ instance ToJSON AuthorAndUserRaw where
     , "avatar" .= userRawAvatar
     , "description" .= authorRawDescription
     ]
+
+tagRaw :: TagRaw
+tagRaw = TagRaw "Newtag"
+
+tagRawTag :: Tag
+tagRawTag = Tag 1 "Newtag"
+
+instance ToJSON TagRaw where
+  toJSON TagRaw {..} = object ["name" .= tagRawName]
+
+categoryRaw :: CategoryRaw
+categoryRaw =
+  CategoryRaw { categoryRawName = "cat", categoryRawParentId = Nothing }
+
+categoryRawCategory :: CategoryNested
+categoryRawCategory = Parent 1 "cat"
+
+categoryRawWithParent :: CategoryRaw
+categoryRawWithParent =
+  CategoryRaw { categoryRawName = "cat", categoryRawParentId = Just 1 }
+
+categoryRawWithParentCategory :: CategoryNested
+categoryRawWithParentCategory = CategoryNested 2 "cat" (head categories)
+
+instance ToJSON CategoryRaw where
+  toJSON (CategoryRaw name Nothing) = object ["name" .= name]
+  toJSON (CategoryRaw name (Just id)) =
+    object ["name" .= name, "parent_id" .= id]
 
 runMockHandler :: Request -> DynamicPathsMap -> MockHandler -> IO Response
 runMockHandler req dpMap handler = do
@@ -311,4 +373,153 @@ spec = with mockApp $ do
       `shouldRespondWith` 204
     it "responds with 422 with incorrect author id"
       $ request "DELETE" "/api/authors/66" [("Authorization", "5")] ""
+      `shouldRespondWith` 422
+
+  describe "GET /api/tags/" $ do
+    it "responds with 200" $ get "/api/tags/" `shouldRespondWith` 200
+    it "responds with correct JSON on calling with default limit and offset"
+      $                   get "/api/tags/"
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (encode $ tagToResponse <$> take 3 tags)
+                            }
+    it "responds with correct JSON on calling with custom limit and offset"
+      $                   get "/api/tags?limit=2&offset=1"
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (   encode
+                                $   tagToResponse
+                                <$> (take 2 $ drop 1 tags)
+                                )
+                            }
+
+  describe "POST /api/tags/" $ do
+    it "responds with 404 without authorization header"
+      $                   post "/api/tags/" ""
+      `shouldRespondWith` 404
+    it "responds with 404 with incorrect authorization header"
+      $ request "POST" "/api/tags/" [("Authorization", "1")] ""
+      `shouldRespondWith` 404
+    it "responds with 200 with correct authorization header"
+      $ request "POST" "/api/tags/" [("Authorization", "5")] (encode tagRaw)
+      `shouldRespondWith` 200
+    it "responds with 400 with incorrect JSON structure"
+      $ request "POST" "/api/tags/" [("Authorization", "5")] "{mistake}"
+      `shouldRespondWith` 400
+    it "responds with correct JSON"
+      $ request "POST" "/api/tags/" [("Authorization", "5")] (encode tagRaw)
+      `shouldRespondWith` 200
+                            { matchBody = bodyEquals
+                                            (encode $ tagToResponse tagRawTag)
+                            }
+
+  describe "DELETE /api/tags/" $ do
+    it "responds with 404 without authorization header"
+      $                   delete "/api/tags/1"
+      `shouldRespondWith` 404
+    it "responds with 404 with incorrect authorization header"
+      $ request "DELETE" "/api/tags/1" [("Authorization", "1")] ""
+      `shouldRespondWith` 404
+    it "responds with 204 with correct authorization header"
+      $ request "DELETE" "/api/tags/1" [("Authorization", "5")] ""
+      `shouldRespondWith` 204
+    it "responds with 422 with incorrect tag id"
+      $ request "DELETE" "/api/tags/66" [("Authorization", "5")] ""
+      `shouldRespondWith` 422
+
+  describe "GET /api/categories/" $ do
+    it "responds with 200" $ get "/api/categories/" `shouldRespondWith` 200
+    it "responds with correct JSON on calling with default limit and offset"
+      $                   get "/api/categories/"
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (   encode
+                                $   categoryNestedToResponse
+                                <$> take 3 categories
+                                )
+                            }
+    it "responds with correct JSON on calling with custom limit and offset"
+      $                   get "/api/categories?limit=2&offset=1"
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (   encode
+                                $   categoryNestedToResponse
+                                <$> (take 2 $ drop 1 categories)
+                                )
+                            }
+
+  describe "POST /api/categories/" $ do
+    it "responds with 404 without authorization header"
+      $                   post "/api/categories/" ""
+      `shouldRespondWith` 404
+    it "responds with 404 with incorrect authorization header"
+      $ request "POST" "/api/categories/" [("Authorization", "1")] ""
+      `shouldRespondWith` 404
+    it "responds with 200 with correct authorization header"
+      $                   request "POST"
+                                  "/api/categories/"
+                                  [("Authorization", "5")]
+                                  (encode categoryRaw)
+      `shouldRespondWith` 200
+    it "responds with 400 with incorrect JSON structure"
+      $ request "POST" "/api/categories/" [("Authorization", "5")] "{mistake}"
+      `shouldRespondWith` 400
+    it "responds with correct JSON on calling without parent id"
+      $                   request "POST"
+                                  "/api/categories/"
+                                  [("Authorization", "5")]
+                                  (encode categoryRaw)
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (encode $ categoryNestedToResponse
+                                  categoryRawCategory
+                                )
+                            }
+    it "responds with correct JSON on calling with parent id"
+      $                   request "POST"
+                                  "/api/categories/"
+                                  [("Authorization", "5")]
+                                  (encode categoryRawWithParent)
+      `shouldRespondWith` 200
+                            { matchBody =
+                              bodyEquals
+                                (encode $ categoryNestedToResponse
+                                  categoryRawWithParentCategory
+                                )
+                            }
+
+  describe "DELETE /api/categories/" $ do
+    it "responds with 404 without authorization header"
+      $                   delete "/api/categories/1"
+      `shouldRespondWith` 404
+    it "responds with 404 with incorrect authorization header"
+      $ request "DELETE" "/api/categories/1" [("Authorization", "1")] ""
+      `shouldRespondWith` 404
+    it "responds with 204 with correct authorization header"
+      $ request "DELETE" "/api/categories/1" [("Authorization", "5")] ""
+      `shouldRespondWith` 204
+    it "responds with 422 with incorrect category id"
+      $ request "DELETE" "/api/categories/66" [("Authorization", "5")] ""
+      `shouldRespondWith` 422
+
+  describe "DELETE /api/comments/" $ do
+    it "responds with 404 without authorization header"
+      $                   delete "/api/comments/1"
+      `shouldRespondWith` 404
+    it "responds with 404 with incorrect authorization header"
+      $ request "DELETE" "/api/comments/1" [("Authorization", "3")] ""
+      `shouldRespondWith` 404
+    it "responds with 204 with correct authorization header"
+      $ request "DELETE" "/api/comments/1" [("Authorization", "1")] ""
+      `shouldRespondWith` 204
+    it "responds with 204 with admin authorization header"
+      $ request "DELETE" "/api/comments/1" [("Authorization", "5")] ""
+      `shouldRespondWith` 204
+    it "responds with 422 with incorrect comment id"
+      $ request "DELETE" "/api/comments/66" [("Authorization", "5")] ""
       `shouldRespondWith` 422

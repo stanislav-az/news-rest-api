@@ -16,14 +16,14 @@ data Commentary = Commentary {
   commentaryContent :: Text,
   commentaryNewsId :: Integer,
   commentaryUserId :: Integer
-}
+} deriving Show
 
 instance FromRow Commentary where
   fromRow = Commentary <$> field <*> field <*> field <*> field
 
 instance Persistent Commentary where
   tableName _ = "commentaries"
-  
+
   select = error "Use selectCommentariesByNewsId"
 
 data CommentaryRaw = CommentaryRaw {

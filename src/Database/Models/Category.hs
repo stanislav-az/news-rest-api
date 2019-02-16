@@ -24,7 +24,7 @@ instance FromRow Category where
 instance Persistent Category where
   tableName _ = "categories"
 
-data CategoryNested = CategoryNested Integer Text CategoryNested | Parent Integer Text
+data CategoryNested = CategoryNested Integer Text CategoryNested | Parent Integer Text deriving Show
 
 instance Persistent CategoryNested where
   tableName _ = error "No table for CategoryNested"

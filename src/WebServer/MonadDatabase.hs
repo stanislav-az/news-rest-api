@@ -8,6 +8,9 @@ import qualified Database.PostgreSQL.Simple    as PSQL
 import           Database.Models.User
 import           Database.Models.Author
 import           Database.Models.Tag
+import           Database.Models.Category
+import           Database.Models.News
+import           Database.Models.Commentary
 import qualified Database.Queries.News         as DQN
 import qualified Database.Queries.Commentary   as DQC
 import           Data.Proxy
@@ -70,3 +73,49 @@ instance PersistentAuthor IO where
     E.try (D.delete (Proxy :: Proxy Author) c i) >>= either left convertBool
   insertAuthor o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
+
+class (Monad m) => PersistentTag m where
+  selectTags :: Selector m Tag
+  deleteTagById :: Deleter m
+  insertTag :: Inserter TagRaw m Tag
+
+instance PersistentTag IO where
+  selectTags p =
+    withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
+  deleteTagById i = withPSQLConnection $ \c ->
+    E.try (D.delete (Proxy :: Proxy Tag) c i) >>= either left convertBool
+  insertTag o = withPSQLConnection $ \c -> E.try (D.insert c o)
+    >>= either left (maybeRight "Could not insert object")
+
+class (Monad m) => PersistentCategory m where
+  selectCategoriesNested :: Selector m CategoryNested
+  deleteCategoryById :: Deleter m
+  insertCategory :: Inserter CategoryRaw m CategoryNested
+
+instance PersistentCategory IO where
+  selectCategoriesNested p =
+    withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
+  deleteCategoryById i =
+    withPSQLConnection
+      $ \c ->
+          E.try (D.delete (Proxy :: Proxy Category) c i)
+            >>= either left convertBool
+  insertCategory o = withPSQLConnection $ \c -> E.try (D.insert c o)
+    >>= either left (maybeRight "Could not insert object")
+
+class (Monad m) => PersistentNews m where
+  deleteNewsById :: Deleter m
+  insertNews :: Inserter NewsRaw m NewsNested
+
+instance PersistentNews IO where
+  deleteNewsById i = withPSQLConnection $ \c ->
+    E.try (D.delete (Proxy :: Proxy News) c i) >>= either left convertBool
+  insertNews o = withPSQLConnection $ \c -> E.try (D.insert c o)
+    >>= either left (maybeRight "Could not insert object")
+
+class (Monad m) => PersistentCommentary m where
+  deleteCommentaryById :: Deleter m
+
+instance PersistentCommentary IO where
+  deleteCommentaryById i = withPSQLConnection $ \c ->
+    E.try (D.delete (Proxy :: Proxy Commentary) c i) >>= either left convertBool
