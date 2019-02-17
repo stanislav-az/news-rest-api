@@ -5,3 +5,4 @@ bash ./create-users.sh
 bash ./create-news.sh
 bash ./publish-news.sh
 bash ./create-commentaries.sh
+bash ./main.sh

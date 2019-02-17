@@ -147,11 +147,8 @@ getCommentariesListRoute =
 
 routes :: [(Route, Handler)]
 routes =
-  [ (updateAuthorRoute, checkPermission Admin updateAuthorHandler)
-    , (updateTagRoute     , checkPermission Admin updateTagHandler)
-    , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
-    , (getNewsListRoute   , listNews)
-    , (searchNewsRoute    , searchNews)
+  [ (getNewsListRoute, listNews)
+    , (searchNewsRoute , searchNews)
     , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
     , ( publishNewsRoute
       , checkPermission (Owner isAuthorOfNews) publishNewsHandler
@@ -167,6 +164,14 @@ routes =
     ++ listRoutes
     ++ createRoutes
     ++ removeRoutes
+    ++ updateRoutes
+
+updateRoutes :: [(Route, Handler)]
+updateRoutes =
+  [ (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
+  , (updateTagRoute     , checkPermission Admin updateTagHandler)
+  , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
+  ]
 
 listRoutes
   :: ( MonadReader HandlerEnv m
