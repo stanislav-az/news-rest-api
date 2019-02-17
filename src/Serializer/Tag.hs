@@ -3,26 +3,36 @@
 
 module Serializer.Tag where
 
-import           Data.Aeson
-import           Database.Models.Tag
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                )
+import           Database.Models.Tag            ( Tag(..)
+                                                , TagRaw(..)
+                                                )
 
 newtype CreateTagRequest = CreateTagRequest TagRaw
 
-instance FromJSON CreateTagRequest where
-  parseJSON = withObject "CreateTagRequest"
+instance JSON.FromJSON CreateTagRequest where
+  parseJSON = JSON.withObject "CreateTagRequest"
     $ \v -> CreateTagRequest . TagRaw <$> v .: "name"
 
 newtype UpdateTagRequest = UpdateTagRequest TagRaw
 
-instance FromJSON UpdateTagRequest where
-  parseJSON = withObject "UpdateTagRequest"
+instance JSON.FromJSON UpdateTagRequest where
+  parseJSON = JSON.withObject "UpdateTagRequest"
     $ \v -> UpdateTagRequest . TagRaw <$> v .: "name"
 
 newtype CreateTagResponse = CreateTagResponse Tag
 
-instance ToJSON CreateTagResponse where
+instance JSON.ToJSON CreateTagResponse where
   toJSON (CreateTagResponse Tag {..}) =
-    object ["id" .= tagId, "name" .= tagName]
+    JSON.object ["id" .= tagId, "name" .= tagName]
 
 requestToTag :: CreateTagRequest -> TagRaw
 requestToTag (CreateTagRequest tag) = tag

@@ -1,24 +1,36 @@
 module Database.Migration where
 
-import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.Migration
-import           System.Directory               ( createDirectoryIfMissing )
-import           Control.Exception              ( bracket )
-import qualified Database.Connection           as DC
-import qualified Config                        as C
-import           WebServer.HandlerClass
-import           Helpers
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Connection(..)
+                                                , withTransaction
+                                                , close
+                                                )
+import qualified Database.PostgreSQL.Simple.Migration
+                                               as PSQL
+                                                ( MigrationResult(..)
+                                                , MigrationCommand(..)
+                                                , runMigrations
+                                                )
+import qualified System.Directory              as D
+                                                ( createDirectoryIfMissing )
+import qualified Control.Exception             as E
+                                                ( bracket )
+import           Database.Connection            ( connect )
+import           Config                         ( loadConfig )
+import           WebServer.HandlerClass         ( MonadLogger(..) )
+import           Helpers                        ( texify )
 
 initializeDB :: IO ()
 initializeDB = do
-  conf <- C.loadConfig
-  createDirectoryIfMissing False "./migrations"
-  bracket (DC.connect conf) close migrate
+  conf <- loadConfig
+  D.createDirectoryIfMissing False "./migrations"
+  E.bracket (connect conf) PSQL.close migrate
 
-migrate :: Connection -> IO ()
+migrate :: PSQL.Connection -> IO ()
 migrate conn = do
-  result <- withTransaction conn (runMigrations False conn cmds)
+  result <- PSQL.withTransaction conn (PSQL.runMigrations False conn cmds)
   case result of
-    MigrationError err -> logError $ texify err
-    _                  -> return ()
-  where cmds = [MigrationInitialization, MigrationDirectory "./migrations"]
+    PSQL.MigrationError err -> logError $ texify err
+    _                       -> return ()
+ where
+  cmds = [PSQL.MigrationInitialization, PSQL.MigrationDirectory "./migrations"]

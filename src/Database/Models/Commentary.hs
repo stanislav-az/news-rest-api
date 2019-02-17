@@ -3,23 +3,25 @@
 
 module Database.Models.Commentary where
 
-import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.ToField
-import           Database.PostgreSQL.Simple.ToRow
-import           Database.PostgreSQL.Simple.FromRow
-import           Database.PostgreSQL.Simple.Types
-import           Data.Text
-import           WebServer.Database
+import qualified Database.PostgreSQL.Simple.FromRow
+                                               as PSQL
+                                                ( FromRow(..)
+                                                , field
+                                                )
+import qualified Data.Text                     as T
+                                                ( Text(..) )
+import           WebServer.Database             ( Persistent(..) )
 
 data Commentary = Commentary {
   commentaryId :: Integer,
-  commentaryContent :: Text,
+  commentaryContent :: T.Text,
   commentaryNewsId :: Integer,
   commentaryUserId :: Integer
 } deriving Show
 
-instance FromRow Commentary where
-  fromRow = Commentary <$> field <*> field <*> field <*> field
+instance PSQL.FromRow Commentary where
+  fromRow =
+    Commentary <$> PSQL.field <*> PSQL.field <*> PSQL.field <*> PSQL.field
 
 instance Persistent Commentary where
   tableName _ = "commentaries"
@@ -27,6 +29,6 @@ instance Persistent Commentary where
   select = error "Use selectCommentariesByNewsId"
 
 data CommentaryRaw = CommentaryRaw {
-    commentaryRawContent :: Text,
+    commentaryRawContent :: T.Text,
     commentaryRawUserId :: Integer
 }

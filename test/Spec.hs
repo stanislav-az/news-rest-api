@@ -3,8 +3,10 @@ module Main
   )
 where
 
-import           Test.Tasty
-import           Test.Tasty.Hspec
+import           Test.Tasty                     ( defaultMain
+                                                , testGroup
+                                                )
+import           Test.Tasty.Hspec               ( testSpec )
 import qualified RouteSpec                     as RS
 import qualified MonadDatabaseSpec             as MD
 

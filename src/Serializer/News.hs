@@ -3,31 +3,46 @@
 
 module Serializer.News where
 
-import           Data.Aeson
-import           Data.Functor.Identity
-import           Database.Models.News
-import           Serializer.Author
-import           Serializer.Category
-import           Serializer.Tag
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                , (.:?)
+                                                )
+import qualified Data.Functor.Identity         as I
+                                                ( Identity(..) )
+import           Database.Models.News           ( NewsRawT(..)
+                                                , NewsNested(..)
+                                                , NewsRaw(..)
+                                                , NewsRawPartial(..)
+                                                , Photo(..)
+                                                )
+import           Serializer.Author              ( authorToResponse )
+import           Serializer.Category            ( CreateCategoryResponse(..) )
+import           Serializer.Tag                 ( CreateTagResponse(..) )
 
-newtype CreateNewsRequest = CreateNewsRequest (NewsRawT Identity)
+newtype CreateNewsRequest = CreateNewsRequest (NewsRawT I.Identity)
 
-instance FromJSON CreateNewsRequest where
-  parseJSON = withObject "CreateNewsRequest" $ \v ->
+instance JSON.FromJSON CreateNewsRequest where
+  parseJSON = JSON.withObject "CreateNewsRequest" $ \v ->
     fmap CreateNewsRequest
       $   NewsRawT
-      <$> (Identity <$> (v .: "title"))
-      <*> (Identity <$> (v .: "author_id"))
-      <*> (Identity <$> (v .: "category_id"))
-      <*> (Identity <$> (v .: "content"))
-      <*> (Identity <$> (v .: "main_photo"))
-      <*> (Identity <$> (v .: "tags"))
-      <*> (Identity <$> (v .: "photos"))
+      <$> (I.Identity <$> (v .: "title"))
+      <*> (I.Identity <$> (v .: "author_id"))
+      <*> (I.Identity <$> (v .: "category_id"))
+      <*> (I.Identity <$> (v .: "content"))
+      <*> (I.Identity <$> (v .: "main_photo"))
+      <*> (I.Identity <$> (v .: "tags"))
+      <*> (I.Identity <$> (v .: "photos"))
 
 newtype UpdateNewsRequest = UpdateNewsRequest (NewsRawT Maybe)
 
-instance FromJSON UpdateNewsRequest where
-  parseJSON = withObject "UpdateNewsRequest" $ \v ->
+instance JSON.FromJSON UpdateNewsRequest where
+  parseJSON = JSON.withObject "UpdateNewsRequest" $ \v ->
     fmap UpdateNewsRequest
       $   NewsRawT
       <$> v
@@ -47,25 +62,25 @@ instance FromJSON UpdateNewsRequest where
 
 newtype CreateNewsResponse = CreateNewsResponse NewsNested
 
-instance ToJSON CreateNewsResponse where
-  toJSON (CreateNewsResponse NewsNested {..}) = object
+instance JSON.ToJSON CreateNewsResponse where
+  toJSON (CreateNewsResponse NewsNested {..}) = JSON.object
     [ "id" .= newsNestedId
     , "title" .= newsNestedTitle
     , "date_created" .= newsNestedDateCreated
     , "content" .= newsNestedContent
     , "main_photo" .= newsNestedMainPhoto
     , "is_draft" .= newsNestedIsDraft
-    , "author" .= toJSON (authorToResponse newsNestedAuthorAndUser)
-    , "category" .= toJSON (CreateCategoryResponse newsNestedCategory)
-    , "tags" .= toJSON (CreateTagResponse <$> newsNestedTags)
-    , "photos" .= toJSON (PhotoResponse <$> newsNestedPhotos)
+    , "author" .= JSON.toJSON (authorToResponse newsNestedAuthorAndUser)
+    , "category" .= JSON.toJSON (CreateCategoryResponse newsNestedCategory)
+    , "tags" .= JSON.toJSON (CreateTagResponse <$> newsNestedTags)
+    , "photos" .= JSON.toJSON (PhotoResponse <$> newsNestedPhotos)
     ]
 
 newtype PhotoResponse = PhotoResponse Photo
 
-instance ToJSON PhotoResponse where
+instance JSON.ToJSON PhotoResponse where
   toJSON (PhotoResponse Photo {..}) =
-    object ["id" .= photoId, "url" .= photoUrl, "news_id" .= photoNewsId]
+    JSON.object ["id" .= photoId, "url" .= photoUrl, "news_id" .= photoNewsId]
 
 requestToNews :: CreateNewsRequest -> NewsRaw
 requestToNews (CreateNewsRequest nrt) = NewsRaw nrt

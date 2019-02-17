@@ -3,18 +3,25 @@
 
 module Database.Queries.Category where
 
-import           Helpers
-import           Database.PostgreSQL.Simple
-import           Database.Models.Category
-import           Database.Queries.Queries
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Connection(..)
+                                                , Query(..)
+                                                , query
+                                                )
+import           Database.Models.Category       ( CategoryNested(..)
+                                                , CategoryRawPartial(..)
+                                                , nestCategory
+                                                )
+import           Database.Queries.Queries       ( makeQueryParameters )
+import           Helpers                        ( texify )
 
 updateCategory
-  :: Connection -> Integer -> CategoryRawPartial -> IO CategoryNested
+  :: PSQL.Connection -> Integer -> CategoryRawPartial -> IO CategoryNested
 updateCategory conn categoryId category =
-  (head <$> query conn (updateCategoryQuery category) (Only categoryId))
+  (head <$> PSQL.query conn (updateCategoryQuery category) [categoryId])
     >>= (nestCategory conn)
 
-updateCategoryQuery :: CategoryRawPartial -> Query
+updateCategoryQuery :: CategoryRawPartial -> PSQL.Query
 updateCategoryQuery CategoryRawPartial {..} =
   let params = makeQueryParameters
         [ ("name"     , categoryRawPartialName)

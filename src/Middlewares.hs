@@ -3,24 +3,28 @@
 
 module Middlewares where
 
-import           WebServer.HandlerMonad
-import           WebServer.HandlerClass
-import           WebServer.MonadDatabase
-import           WebServer.Database
 import           Control.Monad.Reader
 import           Control.Monad.Except
-import qualified Database.PostgreSQL.Simple    as PSQL
-import           Network.Wai
-import           Database.Models.User
-import qualified Data.Text                     as T
+import qualified Network.Wai                   as W
+                                                ( Request(..)
+                                                , requestHeaders
+                                                )
 import qualified Data.ByteString.Char8         as BS
-import           Text.Read
-import           Helpers
-import qualified Network.HTTP.Types            as HTTP
+                                                ( unpack )
+import qualified Text.Read                     as R
+                                                ( readMaybe )
+import           WebServer.HandlerMonad         ( DynamicPathsMap(..)
+                                                , HandlerError(..)
+                                                , HandlerEnv(..)
+                                                )
+import           WebServer.MonadDatabase        ( PersistentUser(..) )
+import           Helpers                        ( eitherToMaybe
+                                                , textToInteger
+                                                )
+import           Database.Models.User           ( User(..) )
 
 data Permission m = Admin
     | Owner (User -> Integer -> m Bool)
-
 
 checkPermission
   :: (MonadReader HandlerEnv m, PersistentUser m, MonadError HandlerError m)
@@ -62,13 +66,13 @@ getObjectId :: DynamicPathsMap -> Maybe Integer
 getObjectId dpMap = objId >>= eitherToMaybe
   where objId = textToInteger <$> lookup "id" dpMap
 
-getAuthHeader :: Request -> Maybe Integer
+getAuthHeader :: W.Request -> Maybe Integer
 getAuthHeader req =
-  let headers = requestHeaders req
+  let headers = W.requestHeaders req
       bsId    = lookup "Authorization" headers
-  in  bsId >>= (readMaybe . BS.unpack)
+  in  bsId >>= (R.readMaybe . BS.unpack)
 
-getUser :: PersistentUser f => Request -> f (Either String User)
+getUser :: PersistentUser f => W.Request -> f (Either String User)
 getUser req = maybe (pure $ Left "No authorization header") selectUserById
   $ getAuthHeader req
 

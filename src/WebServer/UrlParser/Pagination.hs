@@ -2,9 +2,11 @@
 
 module WebServer.UrlParser.Pagination where
 
-import           Data.Maybe                     ( fromMaybe )
-import           WebServer.UrlParser.Query
-import           Network.Wai
+import qualified Data.Maybe                    as MB
+                                                ( fromMaybe )
+import qualified Network.Wai                   as W
+                                                ( Request(..) )
+import           WebServer.UrlParser.Query      ( getQueryParam )
 
 newtype Limit = Limit {
   unwrapLimit :: Integer
@@ -28,9 +30,9 @@ instance Read Offset where
 instance Show Offset where
   show (Offset x) = show x
 
-getLimitOffset :: Limit -> Request -> (Limit, Offset)
+getLimitOffset :: Limit -> W.Request -> (Limit, Offset)
 getLimitOffset maxLimit req =
-  ( fromMaybe maxLimit   (getQueryParam req "limit")
-  , fromMaybe (Offset 0) (getQueryParam req "offset")
+  ( MB.fromMaybe maxLimit (getQueryParam req "limit")
+  , MB.fromMaybe (Offset 0) (getQueryParam req "offset")
   )
 

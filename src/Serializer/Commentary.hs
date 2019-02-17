@@ -3,13 +3,23 @@
 
 module Serializer.Commentary where
 
-import           Data.Aeson
-import           Database.Models.Commentary
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                )
+import           Database.Models.Commentary     ( Commentary(..)
+                                                , CommentaryRaw(..)
+                                                )
 
 newtype CreateCommentaryRequest = CreateCommentaryRequest CommentaryRaw
 
-instance FromJSON CreateCommentaryRequest where
-  parseJSON = withObject "CreateCommentaryRequest" $ \v ->
+instance JSON.FromJSON CreateCommentaryRequest where
+  parseJSON = JSON.withObject "CreateCommentaryRequest" $ \v ->
     fmap CreateCommentaryRequest
       $   CommentaryRaw
       <$> v
@@ -19,8 +29,8 @@ instance FromJSON CreateCommentaryRequest where
 
 newtype CreateCommentaryResponse = CreateCommentaryResponse Commentary
 
-instance ToJSON CreateCommentaryResponse where
-  toJSON (CreateCommentaryResponse Commentary {..}) = object
+instance JSON.ToJSON CreateCommentaryResponse where
+  toJSON (CreateCommentaryResponse Commentary {..}) = JSON.object
     [ "id" .= commentaryId
     , "content" .= commentaryContent
     , "news_id" .= commentaryNewsId

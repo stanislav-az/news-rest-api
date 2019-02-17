@@ -2,13 +2,25 @@
 
 module Serializer.Category where
 
-import           Data.Aeson
-import           Database.Models.Category
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                , (.:?)
+                                                )
+import           Database.Models.Category       ( CategoryNested(..)
+                                                , CategoryRaw(..)
+                                                , CategoryRawPartial(..)
+                                                )
 
 newtype CreateCategoryRequest = CreateCategoryRequest CategoryRaw
 
-instance FromJSON CreateCategoryRequest where
-  parseJSON = withObject "CreateCategoryRequest" $ \v ->
+instance JSON.FromJSON CreateCategoryRequest where
+  parseJSON = JSON.withObject "CreateCategoryRequest" $ \v ->
     fmap CreateCategoryRequest
       $   CategoryRaw
       <$> v
@@ -18,8 +30,8 @@ instance FromJSON CreateCategoryRequest where
 
 newtype UpdateCategoryRequest = UpdateCategoryRequest CategoryRawPartial
 
-instance FromJSON UpdateCategoryRequest where
-  parseJSON = withObject "UpdateCategoryRequest" $ \v ->
+instance JSON.FromJSON UpdateCategoryRequest where
+  parseJSON = JSON.withObject "UpdateCategoryRequest" $ \v ->
     fmap UpdateCategoryRequest
       $   CategoryRawPartial
       <$> v
@@ -29,13 +41,13 @@ instance FromJSON UpdateCategoryRequest where
 
 newtype CreateCategoryResponse = CreateCategoryResponse CategoryNested
 
-instance ToJSON CreateCategoryResponse where
+instance JSON.ToJSON CreateCategoryResponse where
   toJSON (CreateCategoryResponse (Parent id name)) =
-    object ["id" .= id, "name" .= name]
-  toJSON (CreateCategoryResponse (CategoryNested id name parent)) = object
+    JSON.object ["id" .= id, "name" .= name]
+  toJSON (CreateCategoryResponse (CategoryNested id name parent)) = JSON.object
     [ "id" .= id
     , "name" .= name
-    , "parent" .= (toJSON $ CreateCategoryResponse parent)
+    , "parent" .= (JSON.toJSON $ CreateCategoryResponse parent)
     ]
 
 requestToCategory :: CreateCategoryRequest -> CategoryRaw

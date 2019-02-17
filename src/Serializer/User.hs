@@ -3,13 +3,23 @@
 
 module Serializer.User where
 
-import           Data.Aeson
-import           Database.Models.User
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                )
+import           Database.Models.User           ( User(..)
+                                                , UserRaw(..)
+                                                )
 
 newtype CreateUserRequest = CreateUserRequest UserRaw
 
-instance FromJSON CreateUserRequest where
-  parseJSON = withObject "CreateUserRequest" $ \v ->
+instance JSON.FromJSON CreateUserRequest where
+  parseJSON = JSON.withObject "CreateUserRequest" $ \v ->
     fmap CreateUserRequest
       $   UserRaw
       <$> v
@@ -21,8 +31,8 @@ instance FromJSON CreateUserRequest where
 
 newtype CreateUserResponse = CreateUserResponse User
 
-instance ToJSON CreateUserResponse where
-  toJSON (CreateUserResponse User {..}) = object
+instance JSON.ToJSON CreateUserResponse where
+  toJSON (CreateUserResponse User {..}) = JSON.object
     [ "id" .= userId
     , "name" .= userName
     , "surname" .= userSurname

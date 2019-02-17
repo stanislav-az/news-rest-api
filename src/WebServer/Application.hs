@@ -2,27 +2,39 @@
 
 module WebServer.Application where
 
-import           Network.Wai
-import           WebServer.Router
-import           WebServer.HandlerClass
-import           WebServer.HandlerMonad
-import           Helpers
-import           Network.HTTP.Types
-import           Data.List                      ( intersperse )
+import qualified Network.Wai                   as W
+                                                ( Request(..)
+                                                , Response(..)
+                                                , Application(..)
+                                                , Middleware(..)
+                                                , pathInfo
+                                                , requestMethod
+                                                , responseStatus
+                                                )
+import qualified Data.List                     as L
+                                                ( intersperse )
+import qualified Network.HTTP.Types            as HTTP
+                                                ( statusCode )
+import           WebServer.Router               ( Route(..)
+                                                , route
+                                                )
+import           WebServer.HandlerClass         ( MonadLogger(..) )
+import           WebServer.HandlerMonad         ( DynamicPathsMap(..) )
+import           Helpers                        ( texify )
 
 newsServer
   :: [(Route, b)]
-  -> (Request -> DynamicPathsMap -> b -> IO Response)
-  -> Application
+  -> (W.Request -> DynamicPathsMap -> b -> IO W.Response)
+  -> W.Application
 newsServer rs runH req respond = route rs req runH >>= respond
 
-withLogging :: Middleware
+withLogging :: W.Middleware
 withLogging app req respond = app
   req
   (\res -> do
-    let status = texify $ statusCode $ responseStatus res
-        method = texify $ requestMethod req
-        path   = mconcat $ "/" : intersperse "/" (pathInfo req)
+    let status = texify $ HTTP.statusCode $ W.responseStatus res
+        method = texify $ W.requestMethod req
+        path   = mconcat $ "/" : L.intersperse "/" (W.pathInfo req)
     logDebug $ method <> " " <> path <> " " <> status
     respond res
   )

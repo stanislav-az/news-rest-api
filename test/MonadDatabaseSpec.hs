@@ -7,36 +7,70 @@ module MonadDatabaseSpec
   )
 where
 
-import           Test.Hspec
-import           Test.Hspec.Wai
-import           Test.Hspec.Wai.Matcher
-import           MockRoutes
-import           WebServer.Application
-import           WebServer.HandlerMonad
-import           WebServer.HandlerClass
-import           Network.Wai
-import           MockMonad
-import qualified Config                        as C
-import qualified Database.Connection           as DC
-import qualified Database.PostgreSQL.Simple    as PSQL
-import           WebServer.UrlParser.Pagination
 import           Control.Monad.Except
-import           Control.Exception              ( bracket )
-import           Helpers
+import           Test.Hspec                     ( Spec(..)
+                                                , describe
+                                                , it
+                                                )
+import           Test.Hspec.Wai                 ( with
+                                                , get
+                                                , post
+                                                , delete
+                                                , request
+                                                , shouldRespondWith
+                                                )
+import           Test.Hspec.Wai.Matcher         ( matchBody
+                                                , bodyEquals
+                                                )
+import qualified Network.Wai                   as W
+                                                ( Application(..)
+                                                , Request(..)
+                                                , Response(..)
+                                                , strictRequestBody
+                                                )
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( close )
+import qualified Data.Aeson                    as JSON
+                                                ( ToJSON(..)
+                                                , object
+                                                , encode
+                                                )
+import           Data.Aeson                     ( (.=) )
+import qualified Control.Exception             as E
+                                                ( bracket )
 import qualified Data.Map.Strict               as M
-import           Database.Models.User
-import           Database.Models.Author
-import           Database.Models.Tag
-import           Database.Models.Category
-import           Database.Models.Commentary
+                                                ( fromAscList )
+import           MockMonad
+import           Config                         ( loadConfig )
+import           Database.Connection            ( connect )
+import           WebServer.UrlParser.Pagination ( Limit(..) )
+import           Helpers                        ( texify )
+import           Database.Models.User           ( User(..)
+                                                , UserRaw(..)
+                                                )
+import           Database.Models.Author         ( Author(..)
+                                                , AuthorRaw(..)
+                                                )
+import           Database.Models.Tag            ( Tag(..)
+                                                , TagRaw(..)
+                                                )
+import           Database.Models.Category       ( CategoryNested(..)
+                                                , CategoryRaw(..)
+                                                )
+import           Database.Models.Commentary     ( Commentary(..) )
 import           Serializer.User                ( userToResponse )
 import           Serializer.Author              ( authorToResponse )
 import           Serializer.Tag                 ( tagToResponse )
 import           Serializer.Category            ( categoryNestedToResponse )
-import           Data.Aeson
-import           WebServer.Error
+import           WebServer.Error                ( manageHandlerError )
+import           MockRoutes                     ( mockRoutes )
+import           WebServer.Application          ( newsServer )
+import           WebServer.HandlerMonad         ( DynamicPathsMap(..)
+                                                , serverErrorResponse
+                                                )
+import           WebServer.HandlerClass         ( MonadLogger(..) )
 
-mockApp :: IO Application
+mockApp :: IO W.Application
 mockApp = pure $ newsServer mockRoutes runMockHandler
 
 database :: MockDB
@@ -175,8 +209,8 @@ userRawUser = User { userId          = 1
                    , userIsAdmin     = False
                    }
 
-instance ToJSON UserRaw where
-  toJSON UserRaw {..} = object
+instance JSON.ToJSON UserRaw where
+  toJSON UserRaw {..} = JSON.object
     [ "name" .= userRawName
     , "surname" .= userRawSurname
     , "avatar" .= userRawAvatar
@@ -205,8 +239,8 @@ authorRawAuthor =
 
 newtype AuthorAndUserRaw = AuthorAndUserRaw (AuthorRaw, UserRaw)
 
-instance ToJSON AuthorAndUserRaw where
-  toJSON (AuthorAndUserRaw (AuthorRaw {..}, UserRaw {..})) = object
+instance JSON.ToJSON AuthorAndUserRaw where
+  toJSON (AuthorAndUserRaw (AuthorRaw {..}, UserRaw {..})) = JSON.object
     [ "name" .= userRawName
     , "surname" .= userRawSurname
     , "avatar" .= userRawAvatar
@@ -219,8 +253,8 @@ tagRaw = TagRaw "Newtag"
 tagRawTag :: Tag
 tagRawTag = Tag 1 "Newtag"
 
-instance ToJSON TagRaw where
-  toJSON TagRaw {..} = object ["name" .= tagRawName]
+instance JSON.ToJSON TagRaw where
+  toJSON TagRaw {..} = JSON.object ["name" .= tagRawName]
 
 categoryRaw :: CategoryRaw
 categoryRaw =
@@ -236,16 +270,16 @@ categoryRawWithParent =
 categoryRawWithParentCategory :: CategoryNested
 categoryRawWithParentCategory = CategoryNested 2 "cat" (head categories)
 
-instance ToJSON CategoryRaw where
-  toJSON (CategoryRaw name Nothing) = object ["name" .= name]
+instance JSON.ToJSON CategoryRaw where
+  toJSON (CategoryRaw name Nothing) = JSON.object ["name" .= name]
   toJSON (CategoryRaw name (Just id)) =
-    object ["name" .= name, "parent_id" .= id]
+    JSON.object ["name" .= name, "parent_id" .= id]
 
-runMockHandler :: Request -> DynamicPathsMap -> MockHandler -> IO Response
+runMockHandler :: W.Request -> DynamicPathsMap -> MockHandler -> IO W.Response
 runMockHandler req dpMap handler = do
-  conf <- C.loadConfig
-  body <- strictRequestBody req
-  res  <- bracket (DC.connect conf) PSQL.close $ \conn ->
+  conf <- loadConfig
+  body <- W.strictRequestBody req
+  res  <- E.bracket (connect conf) PSQL.close $ \conn ->
     pure $ runMock database body (Limit 3) dpMap req conn $ catchError
       handler
       manageHandlerError
@@ -262,14 +296,14 @@ spec = with mockApp $ do
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ userToResponse <$> take 3 users)
+                                (JSON.encode $ userToResponse <$> take 3 users)
                             }
     it "responds with correct JSON on calling with custom limit and offset"
       $                   get "/api/users?limit=2&offset=1"
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (   encode
+                                (   JSON.encode
                                 $   userToResponse
                                 <$> (take 2 $ drop 1 users)
                                 )
@@ -277,13 +311,14 @@ spec = with mockApp $ do
 
   describe "POST /api/users/" $ do
     it "responds with 200"
-      $                   post "/api/users/" (encode userRaw)
+      $                   post "/api/users/" (JSON.encode userRaw)
       `shouldRespondWith` 200
     it "responds with correct JSON"
-      $                   post "/api/users/" (encode userRaw)
+      $                   post "/api/users/" (JSON.encode userRaw)
       `shouldRespondWith` 200
                             { matchBody =
-                              bodyEquals (encode $ userToResponse userRawUser)
+                              bodyEquals
+                                (JSON.encode $ userToResponse userRawUser)
                             }
     it "responds with 400 with incorrect JSON structure"
       $                   post "/api/users/" "{mistake}"
@@ -318,7 +353,10 @@ spec = with mockApp $ do
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ authorToResponse <$> take 3 authors)
+                                (   JSON.encode
+                                $   authorToResponse
+                                <$> take 3 authors
+                                )
                             }
     it "responds with correct JSON on calling with custom limit and offset"
       $                   request "GET"
@@ -328,7 +366,7 @@ spec = with mockApp $ do
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (   encode
+                                (   JSON.encode
                                 $   authorToResponse
                                 <$> (take 2 $ drop 1 authors)
                                 )
@@ -345,7 +383,7 @@ spec = with mockApp $ do
       $                   request "POST"
                                   "/api/authors/"
                                   [("Authorization", "5")]
-                                  (encode $ AuthorAndUserRaw authorRaw)
+                                  (JSON.encode $ AuthorAndUserRaw authorRaw)
       `shouldRespondWith` 200
     it "responds with 400 with incorrect JSON structure"
       $ request "POST" "/api/authors/" [("Authorization", "5")] "{mistake}"
@@ -354,11 +392,11 @@ spec = with mockApp $ do
       $                   request "POST"
                                   "/api/authors/"
                                   [("Authorization", "5")]
-                                  (encode $ AuthorAndUserRaw authorRaw)
+                                  (JSON.encode $ AuthorAndUserRaw authorRaw)
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ authorToResponse authorRawAuthor)
+                                (JSON.encode $ authorToResponse authorRawAuthor)
                             }
 
   describe "DELETE /api/authors/" $ do
@@ -382,14 +420,14 @@ spec = with mockApp $ do
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ tagToResponse <$> take 3 tags)
+                                (JSON.encode $ tagToResponse <$> take 3 tags)
                             }
     it "responds with correct JSON on calling with custom limit and offset"
       $                   get "/api/tags?limit=2&offset=1"
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (   encode
+                                (   JSON.encode
                                 $   tagToResponse
                                 <$> (take 2 $ drop 1 tags)
                                 )
@@ -403,16 +441,22 @@ spec = with mockApp $ do
       $ request "POST" "/api/tags/" [("Authorization", "1")] ""
       `shouldRespondWith` 404
     it "responds with 200 with correct authorization header"
-      $ request "POST" "/api/tags/" [("Authorization", "5")] (encode tagRaw)
+      $                   request "POST"
+                                  "/api/tags/"
+                                  [("Authorization", "5")]
+                                  (JSON.encode tagRaw)
       `shouldRespondWith` 200
     it "responds with 400 with incorrect JSON structure"
       $ request "POST" "/api/tags/" [("Authorization", "5")] "{mistake}"
       `shouldRespondWith` 400
     it "responds with correct JSON"
-      $ request "POST" "/api/tags/" [("Authorization", "5")] (encode tagRaw)
+      $                   request "POST"
+                                  "/api/tags/"
+                                  [("Authorization", "5")]
+                                  (JSON.encode tagRaw)
       `shouldRespondWith` 200
-                            { matchBody = bodyEquals
-                                            (encode $ tagToResponse tagRawTag)
+                            { matchBody =
+                              bodyEquals (JSON.encode $ tagToResponse tagRawTag)
                             }
 
   describe "DELETE /api/tags/" $ do
@@ -436,7 +480,7 @@ spec = with mockApp $ do
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (   encode
+                                (   JSON.encode
                                 $   categoryNestedToResponse
                                 <$> take 3 categories
                                 )
@@ -444,12 +488,11 @@ spec = with mockApp $ do
     it "responds with correct JSON on calling with custom limit and offset"
       $                   get "/api/categories?limit=2&offset=1"
       `shouldRespondWith` 200
-                            { matchBody =
-                              bodyEquals
-                                (   encode
-                                $   categoryNestedToResponse
-                                <$> (take 2 $ drop 1 categories)
-                                )
+                            { matchBody = bodyEquals
+                                            (   JSON.encode
+                                            $   categoryNestedToResponse
+                                            <$> (take 2 $ drop 1 categories)
+                                            )
                             }
 
   describe "POST /api/categories/" $ do
@@ -463,7 +506,7 @@ spec = with mockApp $ do
       $                   request "POST"
                                   "/api/categories/"
                                   [("Authorization", "5")]
-                                  (encode categoryRaw)
+                                  (JSON.encode categoryRaw)
       `shouldRespondWith` 200
     it "responds with 400 with incorrect JSON structure"
       $ request "POST" "/api/categories/" [("Authorization", "5")] "{mistake}"
@@ -472,11 +515,11 @@ spec = with mockApp $ do
       $                   request "POST"
                                   "/api/categories/"
                                   [("Authorization", "5")]
-                                  (encode categoryRaw)
+                                  (JSON.encode categoryRaw)
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ categoryNestedToResponse
+                                (JSON.encode $ categoryNestedToResponse
                                   categoryRawCategory
                                 )
                             }
@@ -484,11 +527,11 @@ spec = with mockApp $ do
       $                   request "POST"
                                   "/api/categories/"
                                   [("Authorization", "5")]
-                                  (encode categoryRawWithParent)
+                                  (JSON.encode categoryRawWithParent)
       `shouldRespondWith` 200
                             { matchBody =
                               bodyEquals
-                                (encode $ categoryNestedToResponse
+                                (JSON.encode $ categoryNestedToResponse
                                   categoryRawWithParentCategory
                                 )
                             }

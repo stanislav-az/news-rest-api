@@ -5,13 +5,24 @@ module RouteSpec
     )
 where
 
-import           Test.Hspec
+import           Test.Hspec                     ( Spec(..)
+                                                , shouldBe
+                                                , describe
+                                                , it
+                                                )
+import           Network.Wai                    ( Request(..)
+                                                , responseLBS
+                                                , defaultRequest
+                                                , responseStatus
+                                                )
+import qualified Network.HTTP.Types            as HTTP
+                                                ( status200
+                                                , status404
+                                                )
 import           WebServer.Router               ( checkout
                                                 , Route(..)
                                                 , route
                                                 )
-import           Network.Wai
-import           Network.HTTP.Types
 
 rootRoute = MethodRoute "GET"
 
@@ -110,39 +121,39 @@ spec = do
 
     describe "route" $ do
         let responseOk =
-                responseLBS status200 [("Content-Type", "text/html")] "Ok"
+                responseLBS HTTP.status200 [("Content-Type", "text/html")] "Ok"
             response404 =
-                responseLBS status404 [("Content-Type", "text/html")] ""
+                responseLBS HTTP.status404 [("Content-Type", "text/html")] ""
             createAuthorRoute =
                 PathRoute "api" $ PathRoute "author" $ MethodRoute "POST"
             routes = [(createAuthorRoute, pure responseOk)]
             f _ _ h = h
         it "should not call handler on incorrect request" $ do
             res <- route routes defaultRequest f
-            responseStatus res `shouldBe` status404
+            responseStatus res `shouldBe` HTTP.status404
         it "should call create author handler on POST /api/author" $ do
             let authorReq = defaultRequest { requestMethod = "POST"
                                            , pathInfo      = ["api", "author"]
                                            }
             res <- route routes authorReq f
-            responseStatus res `shouldBe` status200
+            responseStatus res `shouldBe` HTTP.status200
         it "should not call create author handler on methods other than POST"
             $ do
                   let authorReq = defaultRequest { requestMethod = "GET"
                                                  , pathInfo = ["api", "author"]
                                                  }
                   res <- route routes authorReq f
-                  responseStatus res `shouldBe` status404
+                  responseStatus res `shouldBe` HTTP.status404
         it "should not call create author handler on incorrect path" $ do
             let authorReq = defaultRequest { requestMethod = "POST"
                                            , pathInfo      = ["api", "authors"]
                                            }
             res <- route routes authorReq f
-            responseStatus res `shouldBe` status404
+            responseStatus res `shouldBe` HTTP.status404
         it "should not call any handlers and respond with 404 on empty routes"
             $ do
                   res <- route [] defaultRequest f
-                  responseStatus res `shouldBe` status404
+                  responseStatus res `shouldBe` HTTP.status404
         it "should call first handler on duplicate routes" $ do
             let routesDuplicate =
                     [ (createAuthorRoute, pure responseOk)
@@ -154,5 +165,5 @@ spec = do
                                            , pathInfo      = ["api", "author"]
                                            }
             res <- route routesDuplicate authorReq f
-            responseStatus res `shouldBe` status200
+            responseStatus res `shouldBe` HTTP.status200
 

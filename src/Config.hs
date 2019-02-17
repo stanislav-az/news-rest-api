@@ -2,7 +2,7 @@
 
 module Config
   ( loadConfig
-  , get
+  , getByName
   , getMaybe
   , getLogConfig
   , C.Config
@@ -10,8 +10,19 @@ module Config
 where
 
 import qualified Data.Configurator             as C
+                                                ( lookup
+                                                , autoReload
+                                                , autoConfig
+                                                , require
+                                                )
 import qualified Data.Configurator.Types       as C
+                                                ( Worth(..)
+                                                , Config(..)
+                                                , Configured(..)
+                                                , Name(..)
+                                                )
 import qualified Control.Logger.Simple         as L
+                                                ( LogConfig(..) )
 
 loadConfig :: IO C.Config
 loadConfig =
@@ -20,12 +31,12 @@ loadConfig =
 getLogConfig :: IO L.LogConfig
 getLogConfig = do
   conf        <- loadConfig
-  logToStdout <- get conf "logging.log_to_stdout"
+  logToStdout <- getByName conf "logging.log_to_stdout"
   logToFile   <- getMaybe conf "logging.log_to_file"
   pure $ L.LogConfig { L.lc_file = logToFile, L.lc_stderr = logToStdout }
 
-get :: C.Configured a => C.Config -> C.Name -> IO a
-get = C.require
+getByName :: C.Configured a => C.Config -> C.Name -> IO a
+getByName = C.require
 
 getMaybe :: C.Configured a => C.Config -> C.Name -> IO (Maybe a)
 getMaybe = C.lookup

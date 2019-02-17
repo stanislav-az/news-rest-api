@@ -3,57 +3,82 @@
 
 module Database.Queries.News where
 
-import           Control.Monad
-import           Database.PostgreSQL.Simple
-import           Database.Models.News
-import           Database.Models.User
-import           Database.Queries.Queries
-import           Helpers
-import           WebServer.Database
-import           WebServer.UrlParser.Filter
-import           WebServer.UrlParser.Sorter
-import           Data.Maybe                     ( listToMaybe )
+import qualified Data.Maybe                    as MB
+                                                ( listToMaybe )
 import qualified Data.Text                     as T
+                                                ( Text(..) )
+import qualified Control.Monad                 as M
+                                                ( forM_ )
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Connection(..)
+                                                , Query(..)
+                                                , query
+                                                , execute
+                                                , withTransaction
+                                                )
+import           Database.Models.News           ( NewsNested(..)
+                                                , News(..)
+                                                , NewsRawT(..)
+                                                , NewsRawPartial(..)
+                                                , nestNews
+                                                , insertPhotoQuery
+                                                , insertTagsNewsQuery
+                                                )
+import           Database.Models.User           ( User(..) )
+import           Database.Queries.Queries       ( textToQuery
+                                                , bsToQuery
+                                                , showToQuery
+                                                , makeQueryParameters
+                                                )
+import           Helpers                        ( texify )
+import           WebServer.Database             ( Limit(..)
+                                                , Offset(..)
+                                                )
+import           WebServer.UrlParser.Filter     ( Filter(..)
+                                                , DateCreated(..)
+                                                , TagIds(..)
+                                                )
+import           WebServer.UrlParser.Sorter     ( Sorter(..) )
 
-publishNews :: Connection -> Integer -> IO NewsNested
+publishNews :: PSQL.Connection -> Integer -> IO NewsNested
 publishNews conn newsId =
-  (head <$> query conn publishNewsQuery (Only newsId)) >>= (nestNews conn)
+  (head <$> PSQL.query conn publishNewsQuery [newsId]) >>= (nestNews conn)
 
-publishNewsQuery :: Query
+publishNewsQuery :: PSQL.Query
 publishNewsQuery =
   "UPDATE news SET is_draft = false \
   \WHERE id = ? \
   \RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
-updateNews :: Connection -> Integer -> NewsRawPartial -> IO NewsNested
+updateNews :: PSQL.Connection -> Integer -> NewsRawPartial -> IO NewsNested
 updateNews conn updatingNewsId newsPartial@(NewsRawPartial NewsRawT {..}) =
-  withTransaction conn $ do
-    (news : _) <- query conn (updateNewsQuery newsPartial) (Only updatingNewsId)
+  PSQL.withTransaction conn $ do
+    (news : _) <- PSQL.query conn (updateNewsQuery newsPartial) [updatingNewsId]
     case newsRawTagsIds of
       Nothing     -> pure ()
       Just tagIds -> deleteOldTagConnections >> makeNewTagConnections
        where
         deleteOldTagConnections =
-          execute conn deleteTagsNewsQuery (Only updatingNewsId)
-        makeNewTagConnections = forM_ tagIds
-          $ \tagId -> execute conn insertTagsNewsQuery (tagId, updatingNewsId)
+          PSQL.execute conn deleteTagsNewsQuery [updatingNewsId]
+        makeNewTagConnections = M.forM_ tagIds $ \tagId ->
+          PSQL.execute conn insertTagsNewsQuery (tagId, updatingNewsId)
     case newsRawPhotos of
       Nothing     -> pure ()
       Just photos -> deleteOldPhotos >> insertNewPhotos
        where
         deleteOldPhotos =
-          execute conn deleteOldPhotosQuery (Only updatingNewsId)
-        insertNewPhotos = forM_ photos
-          $ \photo -> execute conn insertPhotoQuery (photo, updatingNewsId)
+          PSQL.execute conn deleteOldPhotosQuery [updatingNewsId]
+        insertNewPhotos = M.forM_ photos $ \photo ->
+          PSQL.execute conn insertPhotoQuery (photo, updatingNewsId)
     nestNews conn news
 
-deleteTagsNewsQuery :: Query
+deleteTagsNewsQuery :: PSQL.Query
 deleteTagsNewsQuery = "DELETE FROM tags_news WHERE news_id = ?"
 
-deleteOldPhotosQuery :: Query
+deleteOldPhotosQuery :: PSQL.Query
 deleteOldPhotosQuery = "DELETE FROM photos WHERE news_id = ?"
 
-updateNewsQuery :: NewsRawPartial -> Query
+updateNewsQuery :: NewsRawPartial -> PSQL.Query
 updateNewsQuery (NewsRawPartial NewsRawT {..}) =
   let params = makeQueryParameters
         [ ("title"      , newsRawTitle)
@@ -67,14 +92,14 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
     <> "WHERE id = ? "
     <> "RETURNING id, title, date_created, author_id, category_id, content, main_photo, is_draft"
 
-isAuthorOfNews :: Connection -> User -> Integer -> IO Bool
+isAuthorOfNews :: PSQL.Connection -> User -> Integer -> IO Bool
 isAuthorOfNews conn user newsId = do
   mbUserFromNews <- getAuthorUserByNewsId conn newsId
   pure $ maybe False (\u -> userId user == userId u) mbUserFromNews
 
-getAuthorUserByNewsId :: Connection -> Integer -> IO (Maybe User)
-getAuthorUserByNewsId conn newsId = listToMaybe
-  <$> query conn dbQuery (Only newsId)
+getAuthorUserByNewsId :: PSQL.Connection -> Integer -> IO (Maybe User)
+getAuthorUserByNewsId conn newsId = MB.listToMaybe
+  <$> PSQL.query conn dbQuery [newsId]
  where
   dbQuery
     = "SELECT u.id, u.name, u.surname, u.avatar, u.date_created, u.is_admin FROM users u \
@@ -83,13 +108,20 @@ getAuthorUserByNewsId conn newsId = listToMaybe
   \WHERE n.id = ?"
 
 selectNewsNested
-  :: Connection -> (Limit, Offset) -> Filter -> Maybe Sorter -> IO [NewsNested]
+  :: PSQL.Connection
+  -> (Limit, Offset)
+  -> Filter
+  -> Maybe Sorter
+  -> IO [NewsNested]
 selectNewsNested conn pagination filter sorter =
   selectNews conn pagination filter sorter >>= (mapM (nestNews conn))
 
 selectNews
-  :: Connection -> (Limit, Offset) -> Filter -> Maybe Sorter -> IO [News]
-selectNews conn (Limit limit, Offset offset) filter sorter = query conn dbQuery [limit, offset]
+  :: PSQL.Connection -> (Limit, Offset) -> Filter -> Maybe Sorter -> IO [News]
+selectNews conn (Limit limit, Offset offset) filter sorter = PSQL.query
+  conn
+  dbQuery
+  [limit, offset]
  where
   dbQuery =
     "SELECT news_id, news_title, news_date_created, news_author_id, \
@@ -100,7 +132,7 @@ selectNews conn (Limit limit, Offset offset) filter sorter = query conn dbQuery 
       <> maybeQuery sorterToQuery sorter
       <> " LIMIT ? OFFSET ? ;"
 
-filterToQuery :: Filter -> Query
+filterToQuery :: Filter -> PSQL.Query
 filterToQuery Filter {..} =
   maybeQuery dateCreatedToQuery filterDateCreated
     <> maybeQuery authorNameToQuery  filterAuthorName
@@ -127,16 +159,24 @@ filterToQuery Filter {..} =
   newsContentToQuery content =
     " AND news_content ~* '" <> bsToQuery content <> "' "
 
-maybeQuery :: (a -> Query) -> Maybe a -> Query
+maybeQuery :: (a -> PSQL.Query) -> Maybe a -> PSQL.Query
 maybeQuery = maybe ""
 
 findNewsNested
-  :: Connection -> (Limit, Offset) -> T.Text -> Maybe Sorter -> IO [NewsNested]
+  :: PSQL.Connection
+  -> (Limit, Offset)
+  -> T.Text
+  -> Maybe Sorter
+  -> IO [NewsNested]
 findNewsNested conn pagination searchText sorter =
   findNews conn pagination searchText sorter >>= (mapM (nestNews conn))
 
-findNews :: Connection -> (Limit, Offset) -> T.Text -> Maybe Sorter -> IO [News]
-findNews conn (Limit limit, Offset offset) searchText sorter = query conn dbQuery [limit, offset]
+findNews
+  :: PSQL.Connection -> (Limit, Offset) -> T.Text -> Maybe Sorter -> IO [News]
+findNews conn (Limit limit, Offset offset) searchText sorter = PSQL.query
+  conn
+  dbQuery
+  [limit, offset]
  where
   dbQuery =
     "SELECT DISTINCT news_id, news_title, news_date_created, news_author_id, \
@@ -159,7 +199,7 @@ findNews conn (Limit limit, Offset offset) searchText sorter = query conn dbQuer
       <> " LIMIT ? OFFSET ? ;"
   searchQuery = textToQuery searchText
 
-sorterToQuery :: Sorter -> Query
+sorterToQuery :: Sorter -> PSQL.Query
 sorterToQuery Author   = " ORDER BY news_author_name "
 sorterToQuery Category = " ORDER BY news_category_name "
 sorterToQuery Date     = " ORDER BY news_date_created "

@@ -4,26 +4,46 @@
 
 module Database.Models.User where
 
-import           Data.Text
-import           Data.Time
-import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.ToField
-import           Database.PostgreSQL.Simple.ToRow
-import           Database.PostgreSQL.Simple.FromRow
-import           Database.PostgreSQL.Simple.Types
-import           WebServer.Database
+import qualified Data.Text                     as T
+                                                ( Text(..) )
+import qualified Data.Time                     as Time
+                                                ( LocalTime(..) )
+import qualified Database.PostgreSQL.Simple.ToField
+                                               as PSQL
+                                                ( toField )
+import qualified Database.PostgreSQL.Simple.ToRow
+                                               as PSQL
+                                                ( ToRow(..) )
+import qualified Database.PostgreSQL.Simple.FromRow
+                                               as PSQL
+                                                ( FromRow(..)
+                                                , field
+                                                )
+import qualified Database.PostgreSQL.Simple.Types
+                                               as PSQL
+                                                ( Default(..) )
+import           WebServer.Database             ( Persistent(..)
+                                                , Fit(..)
+                                                )
 
 data User = User {
   userId :: Integer,
-  userName :: Text,
-  userSurname :: Text,
-  userAvatar :: Text,
-  userDateCreated :: LocalTime,
+  userName :: T.Text,
+  userSurname :: T.Text,
+  userAvatar :: T.Text,
+  userDateCreated :: Time.LocalTime,
   userIsAdmin :: Bool
 } deriving Show
 
-instance FromRow User where
-  fromRow = User <$> field <*> field <*> field <*> field <*> field <*> field
+instance PSQL.FromRow User where
+  fromRow =
+    User
+      <$> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
 
 instance Persistent User where
   tableName _ = "users"
@@ -31,17 +51,17 @@ instance Persistent User where
 instance Fit UserRaw User where
 
 data UserRaw = UserRaw {
-  userRawName :: Text,
-  userRawSurname :: Text,
-  userRawAvatar :: Text
+  userRawName :: T.Text,
+  userRawSurname :: T.Text,
+  userRawAvatar :: T.Text
 }
 
-instance ToRow UserRaw where
+instance PSQL.ToRow UserRaw where
   toRow UserRaw {..} =
-    [ toField Default
-    , toField userRawName
-    , toField userRawSurname
-    , toField userRawAvatar
-    , toField Default
-    , toField Default
+    [ PSQL.toField PSQL.Default
+    , PSQL.toField userRawName
+    , PSQL.toField userRawSurname
+    , PSQL.toField userRawAvatar
+    , PSQL.toField PSQL.Default
+    , PSQL.toField PSQL.Default
     ]

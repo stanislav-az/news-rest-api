@@ -3,14 +3,20 @@
 
 module Database.Queries.Author where
 
-import           Database.PostgreSQL.Simple
-import           Database.Models.Author
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Connection(..)
+                                                , Query(..)
+                                                , query
+                                                )
+import           Database.Models.Author         ( Author(..)
+                                                , AuthorRaw(..)
+                                                )
 
-updateAuthor :: Connection -> Integer -> AuthorRaw -> IO Author
+updateAuthor :: PSQL.Connection -> Integer -> AuthorRaw -> IO Author
 updateAuthor conn authorId AuthorRaw {..} =
-  head <$> query conn updateAuthorQuery (authorRawDescription, authorId)
+  head <$> PSQL.query conn updateAuthorQuery (authorRawDescription, authorId)
 
-updateAuthorQuery :: Query
+updateAuthorQuery :: PSQL.Query
 updateAuthorQuery =
   "UPDATE authors SET \
     \description = ?\

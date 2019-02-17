@@ -2,13 +2,14 @@
 
 module WebServer.UrlParser.Sorter where
 
-import           Network.Wai
-import           WebServer.UrlParser.Query
+import qualified Network.Wai                   as W
+                                                ( Request(..) )
+import           WebServer.UrlParser.Query      ( getQueryBS )
 
 data Sorter = Author | Category | Date | Photos
   deriving Show
 
-getSorter :: Request -> Maybe Sorter
+getSorter :: W.Request -> Maybe Sorter
 getSorter req = getQueryBS req "sort_by" >>= parse
  where
   parse "author"   = Just Author

@@ -3,23 +3,27 @@
 
 module Routes where
 
-import           WebServer.Router
-import           Network.Wai
-import           Network.HTTP.Types
-import           Handlers
-import           Middlewares
-import           WebServer.HandlerMonad
-import           WebServer.HandlerClass
-import           Database.Models.Author
-import           Database.Models.News
-import           Database.Models.Category
-import           Database.Models.User
-import           Database.Models.Tag
-import           Database.Models.Commentary
 import           Control.Monad.Reader
 import           Control.Monad.Except
-import           Data.Proxy
-import           WebServer.MonadDatabase
+import qualified Network.Wai                   as W
+                                                ( Response(..) )
+import           Handlers
+import           Middlewares
+import           WebServer.HandlerMonad         ( Handler(..)
+                                                , HandlerError(..)
+                                                , HandlerEnv(..)
+                                                , okResponseWithJSONBody
+                                                )
+import           WebServer.HandlerClass         ( MonadHTTP(..) )
+import           WebServer.Router               ( Route(..) )
+import           WebServer.MonadDatabase        ( Authorization(..)
+                                                , PersistentCommentary(..)
+                                                , PersistentAuthor(..)
+                                                , PersistentUser(..)
+                                                , PersistentTag(..)
+                                                , PersistentCategory(..)
+                                                , PersistentNews(..)
+                                                )
 import           Serializer.User                ( requestToUser
                                                 , userToResponse
                                                 )
@@ -173,7 +177,7 @@ listRoutes
      , PersistentTag m
      , PersistentCategory m
      )
-  => [(Route, m Response)]
+  => [(Route, m W.Response)]
 listRoutes =
   [ (getUsersListRoute, list selectUsers userToResponse)
   , ( getAuthorsListRoute
@@ -194,7 +198,7 @@ createRoutes
      , PersistentTag m
      , PersistentCategory m
      )
-  => [(Route, m Response)]
+  => [(Route, m W.Response)]
 createRoutes =
   [ (createUserRoute, create insertUser requestToUser userToResponse)
   , ( createAuthorRoute
@@ -221,7 +225,7 @@ removeRoutes
      , PersistentCommentary m
      , Authorization m
      )
-  => [(Route, m Response)]
+  => [(Route, m W.Response)]
 removeRoutes =
   [ (deleteUserRoute    , checkPermission Admin $ remove deleteUserById)
   , (deleteAuthorRoute  , checkPermission Admin $ remove deleteAuthorById)

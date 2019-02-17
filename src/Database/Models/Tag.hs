@@ -4,17 +4,29 @@
 
 module Database.Models.Tag where
 
-import           Data.Text
-import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.ToField
-import           Database.PostgreSQL.Simple.ToRow
-import           Database.PostgreSQL.Simple.FromRow
-import           Database.PostgreSQL.Simple.Types
-import           WebServer.Database
+import qualified Data.Text                     as T
+                                                ( Text(..) )
+import qualified Database.PostgreSQL.Simple.ToField
+                                               as PSQL
+                                                ( toField )
+import qualified Database.PostgreSQL.Simple.ToRow
+                                               as PSQL
+                                                ( ToRow(..) )
+import qualified Database.PostgreSQL.Simple.FromRow
+                                               as PSQL
+                                                ( FromRow(..)
+                                                , field
+                                                )
+import qualified Database.PostgreSQL.Simple.Types
+                                               as PSQL
+                                                ( Default(..) )
+import           WebServer.Database             ( Persistent(..)
+                                                , Fit(..)
+                                                )
 
 data Tag = Tag {
   tagId :: Integer,
-  tagName :: Text
+  tagName :: T.Text
 } deriving Show
 
 instance Persistent Tag where
@@ -22,12 +34,12 @@ instance Persistent Tag where
 
 instance Fit TagRaw Tag where
 
-instance FromRow Tag where
-  fromRow = Tag <$> field <*> field
+instance PSQL.FromRow Tag where
+  fromRow = Tag <$> PSQL.field <*> PSQL.field
 
 data TagRaw = TagRaw {
-  tagRawName :: Text
+  tagRawName :: T.Text
 }
 
-instance ToRow TagRaw where
-  toRow TagRaw {..} = [toField Default, toField tagRawName]
+instance PSQL.ToRow TagRaw where
+  toRow TagRaw {..} = [PSQL.toField PSQL.Default, PSQL.toField tagRawName]

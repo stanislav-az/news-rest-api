@@ -1,19 +1,36 @@
 module WebServer.MonadDatabase where
 
-import qualified WebServer.Database            as D
+import qualified Data.Proxy                    as P
+                                                ( Proxy(..) )
 import qualified Control.Exception             as E
-import qualified Config                        as C
-import qualified Database.Connection           as DC
+                                                ( SomeException(..)
+                                                , bracket
+                                                , try
+                                                )
 import qualified Database.PostgreSQL.Simple    as PSQL
-import           Database.Models.User
-import           Database.Models.Author
-import           Database.Models.Tag
-import           Database.Models.Category
-import           Database.Models.News
-import           Database.Models.Commentary
+import           Database.Connection            ( connect )
+import           Config                         ( loadConfig )
+import           Database.Models.User           ( User(..)
+                                                , UserRaw(..)
+                                                )
+import           Database.Models.Author         ( Author(..)
+                                                , AuthorRaw(..)
+                                                )
+import           Database.Models.Tag            ( Tag(..)
+                                                , TagRaw(..)
+                                                )
+import           Database.Models.Category       ( CategoryNested(..)
+                                                , Category(..)
+                                                , CategoryRaw(..)
+                                                )
+import           Database.Models.News           ( NewsNested(..)
+                                                , News(..)
+                                                , NewsRaw(..)
+                                                )
+import           Database.Models.Commentary     ( Commentary(..) )
 import qualified Database.Queries.News         as DQN
 import qualified Database.Queries.Commentary   as DQC
-import           Data.Proxy
+import qualified WebServer.Database            as D
 
 type Selector m a = (D.Limit, D.Offset) -> m (Either String [a])
 type Deleter m = Integer -> m (Either String ())
@@ -41,7 +58,7 @@ instance PersistentUser IO where
     E.try (D.selectById c i)
       >>= either left (maybeRight "Could not select entity by id")
   deleteUserById i = withPSQLConnection $ \c ->
-    E.try (D.delete (Proxy :: Proxy User) c i) >>= either left convertBool
+    E.try (D.delete (P.Proxy :: P.Proxy User) c i) >>= either left convertBool
   insertUser o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
 
@@ -59,7 +76,7 @@ convertBool b | b         = pure $ Right ()
               | otherwise = pure $ Left "Could not delete entity"
 
 withPSQLConnection :: (PSQL.Connection -> IO a) -> IO a
-withPSQLConnection = E.bracket (C.loadConfig >>= DC.connect) PSQL.close
+withPSQLConnection = E.bracket (loadConfig >>= connect) PSQL.close
 
 class (Monad m) => PersistentAuthor m where
   selectAuthors :: Selector m (Author, User)
@@ -70,7 +87,7 @@ instance PersistentAuthor IO where
   selectAuthors p =
     withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
   deleteAuthorById i = withPSQLConnection $ \c ->
-    E.try (D.delete (Proxy :: Proxy Author) c i) >>= either left convertBool
+    E.try (D.delete (P.Proxy :: P.Proxy Author) c i) >>= either left convertBool
   insertAuthor o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
 
@@ -82,8 +99,11 @@ class (Monad m) => PersistentTag m where
 instance PersistentTag IO where
   selectTags p =
     withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
-  deleteTagById i = withPSQLConnection $ \c ->
-    E.try (D.delete (Proxy :: Proxy Tag) c i) >>= either left convertBool
+  deleteTagById i =
+    withPSQLConnection
+      $ \c ->
+          E.try (D.delete (P.Proxy :: P.Proxy Tag) c i)
+            >>= either left convertBool
   insertTag o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
 
@@ -95,11 +115,9 @@ class (Monad m) => PersistentCategory m where
 instance PersistentCategory IO where
   selectCategoriesNested p =
     withPSQLConnection $ \c -> E.try (D.select c p) >>= either left right
-  deleteCategoryById i =
-    withPSQLConnection
-      $ \c ->
-          E.try (D.delete (Proxy :: Proxy Category) c i)
-            >>= either left convertBool
+  deleteCategoryById i = withPSQLConnection $ \c ->
+    E.try (D.delete (P.Proxy :: P.Proxy Category) c i)
+      >>= either left convertBool
   insertCategory o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
 
@@ -109,7 +127,7 @@ class (Monad m) => PersistentNews m where
 
 instance PersistentNews IO where
   deleteNewsById i = withPSQLConnection $ \c ->
-    E.try (D.delete (Proxy :: Proxy News) c i) >>= either left convertBool
+    E.try (D.delete (P.Proxy :: P.Proxy News) c i) >>= either left convertBool
   insertNews o = withPSQLConnection $ \c -> E.try (D.insert c o)
     >>= either left (maybeRight "Could not insert object")
 
@@ -118,4 +136,5 @@ class (Monad m) => PersistentCommentary m where
 
 instance PersistentCommentary IO where
   deleteCommentaryById i = withPSQLConnection $ \c ->
-    E.try (D.delete (Proxy :: Proxy Commentary) c i) >>= either left convertBool
+    E.try (D.delete (P.Proxy :: P.Proxy Commentary) c i)
+      >>= either left convertBool

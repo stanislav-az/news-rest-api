@@ -3,16 +3,26 @@
 
 module WebServer.Error where
 
-import           WebServer.HandlerMonad
-import           WebServer.HandlerClass
-import           Helpers
-import qualified Data.Text                     as T
-import           Network.Wai
 import qualified Control.Exception             as E
-import           Control.Monad.Except
-import           Control.Monad.IO.Class
+                                                ( SomeException(..)
+                                                , try
+                                                )
+import qualified Control.Monad.Except          as E
+                                                ( MonadError(..) )
+import qualified Network.Wai                   as W
+                                                ( Response(..) )
+import           WebServer.HandlerMonad         ( HandlerError(..)
+                                                , unprocessableEntityResponse
+                                                , notFoundResponse
+                                                , badRequestResponse
+                                                )
+import           WebServer.HandlerClass         ( MonadLogger(..)
+                                                , MonadHTTP(..)
+                                                )
+import           Helpers                        ( texify )
 
-manageHandlerError :: (MonadHTTP m, MonadLogger m) => HandlerError -> m Response
+manageHandlerError
+  :: (MonadHTTP m, MonadLogger m) => HandlerError -> m W.Response
 manageHandlerError e@(ParseError _) = logWarn (texify e) >> badRequestResponse
 manageHandlerError e@Forbidden =
   logWarn
@@ -28,9 +38,9 @@ withPSQLException io = E.try io >>= either left right
   left  = pure . Left . show
   right = pure . Right
 
-throwParseError :: MonadError HandlerError m => String -> m a
+throwParseError :: E.MonadError HandlerError m => String -> m a
 throwParseError err =
-  throwError $ ParseError $ "Could not parse dynamic url: " ++ err
+  E.throwError $ ParseError $ "Could not parse dynamic url: " ++ err
 
-throwPSQLError :: MonadError HandlerError m => E.SomeException -> m a
-throwPSQLError err = throwError $ PSQLError $ show (err :: E.SomeException)
+throwPSQLError :: E.MonadError HandlerError m => E.SomeException -> m a
+throwPSQLError err = E.throwError $ PSQLError $ show (err :: E.SomeException)

@@ -9,23 +9,48 @@ module MockMonad where
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Reader
+import qualified Network.Wai                   as W
+                                                ( Request(..)
+                                                , Response(..)
+                                                , responseLBS
+                                                )
+import qualified Data.Proxy                    as P
+                                                ( Proxy(..) )
+import qualified Data.Map.Strict               as M
+                                                ( Map(..)
+                                                , keys
+                                                , lookup
+                                                , elems
+                                                )
+import qualified Data.Time                     as Time
+                                                ( LocalTime(..)
+                                                , Day(..)
+                                                , TimeOfDay(..)
+                                                )
+import qualified Data.ByteString.Lazy.Char8    as BC
+                                                ( ByteString(..) )
+import qualified Data.Text                     as T
+                                                ( Text(..) )
+import           WebServer.UrlParser.Pagination ( Limit(..)
+                                                , Offset(..)
+                                                )
 import qualified WebServer.HandlerMonad        as HM
 import qualified WebServer.HandlerClass        as HC
 import qualified WebServer.MonadDatabase       as MD
-import qualified WebServer.Database            as D
 import qualified Database.PostgreSQL.Simple    as PSQL
-import           Network.Wai
-import           Database.Models.Author
-import           Database.Models.User
-import           Database.Models.Tag
-import           Database.Models.Category
-import           Database.Models.Commentary
-import           Data.Proxy
-import           Debug.Trace
-import qualified Data.Map.Strict               as M
-import           Data.Time
-import qualified Data.ByteString.Lazy.Char8    as BC
-import qualified Data.Text                     as T
+import           Database.Models.Author         ( Author(..)
+                                                , AuthorRaw(..)
+                                                )
+import           Database.Models.User           ( User(..)
+                                                , UserRaw(..)
+                                                )
+import           Database.Models.Tag            ( Tag(..)
+                                                , TagRaw(..)
+                                                )
+import           Database.Models.Category       ( CategoryNested(..)
+                                                , CategoryRaw(..)
+                                                )
+import           Database.Models.Commentary     ( Commentary(..) )
 
 data MockIO = MockIO {
   mockDB :: MockDB,
@@ -33,7 +58,7 @@ data MockIO = MockIO {
   mockLog :: [MockLog]
 } deriving Show
 
-type MockHandler = MockMonad Response
+type MockHandler = MockMonad W.Response
 
 newtype MockMonad a = MockMonad {
   runMockMonad :: StateT MockIO (ReaderT HM.HandlerEnv (Except HM.HandlerError)) a
@@ -45,9 +70,9 @@ data MockLog = Debug T.Text | Info T.Text | Warn T.Text | Error T.Text
 runMock
   :: MockDB
   -> BC.ByteString
-  -> D.Limit
+  -> Limit
   -> HM.DynamicPathsMap
-  -> Request
+  -> W.Request
   -> PSQL.Connection
   -> MockMonad a
   -> Either HM.HandlerError a
@@ -63,7 +88,7 @@ runMock db body maxLimit dpMap req conn =
 
 instance HC.MonadHTTP MockMonad where
   getRequestBody _ = gets mockReqBody
-  respond s h b = pure $ responseLBS s h b
+  respond s h b = pure $ W.responseLBS s h b
 
 instance HC.MonadLogger MockMonad where
   logDebug e = modify $ \s@MockIO {..} -> s { mockLog = Debug e : mockLog }
@@ -74,7 +99,7 @@ instance HC.MonadLogger MockMonad where
 instance MD.Authorization MockMonad where
   isAuthorOfNews = error "No tests for this authorization type"
   isAuthorOfCommentary user commentId = do
-    db <- gets mockDB 
+    db <- gets mockDB
     let id1 = userId user
         id2 = commentaryUserId <$> selectById commentId db
     pure $ either (const False) (== id1) id2
@@ -84,15 +109,15 @@ data MockDB = DB (M.Map Integer User) (M.Map Integer (Author, User)) (M.Map Inte
 
 class Unwraped a where
   unwrap :: MockDB -> M.Map Integer a
-  select :: (D.Limit, D.Offset) -> MockDB -> [a]
-  select (D.Limit limit, D.Offset offset) db = take l $ drop o xs
+  select :: (Limit, Offset) -> MockDB -> [a]
+  select (Limit limit, Offset offset) db = take l $ drop o xs
     where
       l = fromIntegral limit
       o = fromIntegral offset
       xs = M.elems $ unwrap db
   selectById :: Integer -> MockDB -> Either String a
   selectById id db = maybe (Left "No such id") Right $ M.lookup id $ unwrap db
-  deleteById :: Proxy a -> Integer -> MockDB -> Either String ()
+  deleteById :: P.Proxy a -> Integer -> MockDB -> Either String ()
   deleteById _ id db = if id `elem` keys then Right () else Left "No such id"
       where
         keys = M.keys (unwrap db :: M.Map Integer a)
@@ -103,7 +128,7 @@ instance Unwraped User where
 instance MD.PersistentUser MockMonad where
   selectUsers p = Right . select p <$> gets mockDB
   selectUserById id = selectById id <$> gets mockDB
-  deleteUserById id = deleteById (Proxy :: Proxy User) id <$> gets mockDB
+  deleteUserById id = deleteById (P.Proxy :: P.Proxy User) id <$> gets mockDB
   insertUser UserRaw {..} = pure $ Right User { userId          = 1
                                               , userName        = userRawName
                                               , userSurname     = userRawSurname
@@ -112,10 +137,10 @@ instance MD.PersistentUser MockMonad where
                                               , userIsAdmin     = False
                                               }
 
-sometime :: LocalTime
-sometime = LocalTime
-  { localDay       = ModifiedJulianDay { toModifiedJulianDay = 162342 }
-  , localTimeOfDay = TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
+sometime :: Time.LocalTime
+sometime = Time.LocalTime
+  { localDay       = Time.ModifiedJulianDay { toModifiedJulianDay = 162342 }
+  , localTimeOfDay = Time.TimeOfDay { todHour = 4, todMin = 8, todSec = 15 }
   }
 
 instance Unwraped (Author, User) where
@@ -124,7 +149,7 @@ instance Unwraped (Author, User) where
 instance MD.PersistentAuthor MockMonad where
   selectAuthors p = Right . select p <$> gets mockDB
   deleteAuthorById id =
-    deleteById (Proxy :: Proxy (Author, User)) id <$> gets mockDB
+    deleteById (P.Proxy :: P.Proxy (Author, User)) id <$> gets mockDB
   insertAuthor (AuthorRaw {..}, UserRaw {..}) = pure $ Right (author, user)
    where
     author = Author 1 1 authorRawDescription
@@ -141,7 +166,7 @@ instance Unwraped Tag where
 
 instance MD.PersistentTag MockMonad where
   selectTags p = Right . select p <$> gets mockDB
-  deleteTagById id = deleteById (Proxy :: Proxy Tag) id <$> gets mockDB
+  deleteTagById id = deleteById (P.Proxy :: P.Proxy Tag) id <$> gets mockDB
   insertTag TagRaw {..} = pure $ Right Tag { tagId = 1, tagName = tagRawName }
 
 instance Unwraped CategoryNested where
@@ -150,7 +175,7 @@ instance Unwraped CategoryNested where
 instance MD.PersistentCategory MockMonad where
   selectCategoriesNested p = Right . select p <$> gets mockDB
   deleteCategoryById id =
-    deleteById (Proxy :: Proxy CategoryNested) id <$> gets mockDB
+    deleteById (P.Proxy :: P.Proxy CategoryNested) id <$> gets mockDB
   insertCategory CategoryRaw {..} = do
     db <- gets mockDB
     let eParent =
@@ -165,4 +190,4 @@ instance Unwraped Commentary where
 
 instance MD.PersistentCommentary MockMonad where
   deleteCommentaryById id =
-    deleteById (Proxy :: Proxy Commentary) id <$> gets mockDB
+    deleteById (P.Proxy :: P.Proxy Commentary) id <$> gets mockDB

@@ -1,9 +1,7 @@
 module Helpers where
 
-import qualified Data.Text                     as T
-import qualified Data.Text.Read                as R
-import           Database.PostgreSQL.Simple
-import qualified Data.String                   as S
+import qualified Data.Text                     as T (Text(..), pack)
+import qualified Data.Text.Read                as R (decimal)
 
 textToInteger :: T.Text -> Either String Integer
 textToInteger t = fst <$> R.decimal t

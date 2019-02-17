@@ -4,44 +4,68 @@
 
 module Database.Models.News where
 
-import           Database.PostgreSQL.Simple
-import           Database.PostgreSQL.Simple.ToField
-import           Database.PostgreSQL.Simple.ToRow
-import           Database.PostgreSQL.Simple.FromRow
-import           Database.PostgreSQL.Simple.Types
-import           Data.Text
-import           Data.Time
-import           Data.Functor.Identity
-import           WebServer.Database
-import           Database.Models.Category
-import           Database.Models.User
-import           Database.Models.Author
-import           Database.Models.Tag
-import           Database.Queries.Tag
-import           Control.Monad
+import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Query(..)
+                                                , Connection(..)
+                                                , query
+                                                , execute
+                                                , withTransaction
+                                                )
+import qualified Database.PostgreSQL.Simple.ToField
+                                               as PSQL
+                                                ( toField )
+import qualified Database.PostgreSQL.Simple.ToRow
+                                               as PSQL
+                                                ( ToRow(..) )
+import qualified Database.PostgreSQL.Simple.FromRow
+                                               as PSQL
+                                                ( FromRow(..)
+                                                , field
+                                                )
+import qualified Database.PostgreSQL.Simple.Types
+                                               as PSQL
+                                                ( Default(..) )
+import qualified Data.Text                     as T
+                                                ( Text(..) )
+import qualified Data.Time                     as Time
+                                                ( LocalTime(..) )
+import qualified Data.Functor.Identity         as I
+                                                ( Identity(..)
+                                                , runIdentity
+                                                )
+import qualified Control.Monad                 as M
+                                                ( forM_ )
+import           WebServer.Database             ( Persistent(..)
+                                                , Fit(..)
+                                                )
+import           Database.Models.Category       ( CategoryNested(..) )
+import           Database.Models.User           ( User(..) )
+import           Database.Models.Author         ( Author(..) )
+import           Database.Models.Tag            ( Tag(..) )
+import           Database.Queries.Tag           ( getTagsByNewsId )
 
 data News = News {
   newsId :: Integer,
-  newsTitle :: Text,
-  newsDateCreated :: LocalTime,
+  newsTitle :: T.Text,
+  newsDateCreated :: Time.LocalTime,
   newsAuthorId :: Integer,
   newsCategoryId :: Integer,
-  newsContent :: Text,
-  newsMainPhoto :: Text,
+  newsContent :: T.Text,
+  newsMainPhoto :: T.Text,
   newsIsDraft :: Bool
 }
 
-instance FromRow News where
+instance PSQL.FromRow News where
   fromRow =
     News
-      <$> field
-      <*> field
-      <*> field
-      <*> field
-      <*> field
-      <*> field
-      <*> field
-      <*> field
+      <$> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
+      <*> PSQL.field
 
 instance Persistent News where
   tableName _ = "news"
@@ -52,10 +76,10 @@ instance Fit NewsRaw News where
 
 data NewsNested = NewsNested {
   newsNestedId :: Integer,
-  newsNestedTitle :: Text,
-  newsNestedDateCreated :: LocalTime,
-  newsNestedContent :: Text,
-  newsNestedMainPhoto :: Text,
+  newsNestedTitle :: T.Text,
+  newsNestedDateCreated :: Time.LocalTime,
+  newsNestedContent :: T.Text,
+  newsNestedMainPhoto :: T.Text,
   newsNestedIsDraft :: Bool,
   newsNestedAuthorAndUser :: (Author,User),
   newsNestedCategory :: CategoryNested,
@@ -71,39 +95,39 @@ instance Persistent NewsNested where
   selectById conn newsId = selectById conn newsId >>= (maybeNestNews conn)
 
 instance Fit NewsRaw NewsNested where
-  insert conn newsRaw@(NewsRaw NewsRawT {..}) = withTransaction conn $ do
+  insert conn newsRaw@(NewsRaw NewsRawT {..}) = PSQL.withTransaction conn $ do
     (Just news) <- insert conn newsRaw
     let thisNewsId = newsId news
-        tagIds     = runIdentity newsRawTagsIds
-        photoUrls  = runIdentity newsRawPhotos
-    forM_ tagIds
-      $ \tagId -> execute conn insertTagsNewsQuery (tagId, thisNewsId)
-    forM_ photoUrls
-      $ \photo -> execute conn insertPhotoQuery (photo, thisNewsId)
+        tagIds     = I.runIdentity newsRawTagsIds
+        photoUrls  = I.runIdentity newsRawPhotos
+    M.forM_ tagIds
+      $ \tagId -> PSQL.execute conn insertTagsNewsQuery (tagId, thisNewsId)
+    M.forM_ photoUrls
+      $ \photo -> PSQL.execute conn insertPhotoQuery (photo, thisNewsId)
     Just <$> nestNews conn news
 
 data NewsRawT f = NewsRawT {
-  newsRawTitle :: f Text,
+  newsRawTitle :: f T.Text,
   newsRawAuthorId :: f Integer,
   newsRawCategoryId :: f Integer,
-  newsRawContent :: f Text,
-  newsRawMainPhoto :: f Text,
+  newsRawContent :: f T.Text,
+  newsRawMainPhoto :: f T.Text,
   newsRawTagsIds :: f [Integer],
-  newsRawPhotos :: f [Text]
+  newsRawPhotos :: f [T.Text]
 }
 
-newtype NewsRaw = NewsRaw (NewsRawT Identity)
+newtype NewsRaw = NewsRaw (NewsRawT I.Identity)
 
-instance ToRow NewsRaw where
+instance PSQL.ToRow NewsRaw where
   toRow (NewsRaw NewsRawT {..}) =
-    [ toField Default
-    , toField $ runIdentity newsRawTitle
-    , toField Default
-    , toField $ runIdentity newsRawAuthorId
-    , toField $ runIdentity newsRawCategoryId
-    , toField $ runIdentity newsRawContent
-    , toField $ runIdentity newsRawMainPhoto
-    , toField Default
+    [ PSQL.toField PSQL.Default
+    , PSQL.toField $ I.runIdentity newsRawTitle
+    , PSQL.toField PSQL.Default
+    , PSQL.toField $ I.runIdentity newsRawAuthorId
+    , PSQL.toField $ I.runIdentity newsRawCategoryId
+    , PSQL.toField $ I.runIdentity newsRawContent
+    , PSQL.toField $ I.runIdentity newsRawMainPhoto
+    , PSQL.toField PSQL.Default
     ]
 
 newtype NewsRawPartial = NewsRawPartial (NewsRawT Maybe)
@@ -113,22 +137,22 @@ data TagNews = TagNews {
   tgNewsId :: Integer
 }
 
-instance FromRow TagNews where
-  fromRow = TagNews <$> field <*> field
+instance PSQL.FromRow TagNews where
+  fromRow = TagNews <$> PSQL.field <*> PSQL.field
 
 data Photo = Photo {
   photoId :: Integer,
-  photoUrl :: Text,
+  photoUrl :: T.Text,
   photoNewsId :: Integer
 }
 
-instance FromRow Photo where
-  fromRow = Photo <$> field <*> field <*> field
+instance PSQL.FromRow Photo where
+  fromRow = Photo <$> PSQL.field <*> PSQL.field <*> PSQL.field
 
-maybeNestNews :: Connection -> Maybe News -> IO (Maybe NewsNested)
+maybeNestNews :: PSQL.Connection -> Maybe News -> IO (Maybe NewsNested)
 maybeNestNews conn = maybe (pure Nothing) (fmap Just . nestNews conn)
 
-nestNews :: Connection -> News -> IO NewsNested
+nestNews :: PSQL.Connection -> News -> IO NewsNested
 nestNews conn News {..} = do
   (Just category     ) <- selectById conn newsCategoryId -- Pattern matching to Just because db constraints let us to do it
   (Just authorAndUser) <- selectById conn newsAuthorId
@@ -146,17 +170,17 @@ nestNews conn News {..} = do
                     , newsNestedPhotos        = photos
                     }
 
-insertTagsNewsQuery :: Query
+insertTagsNewsQuery :: PSQL.Query
 insertTagsNewsQuery =
   "INSERT INTO tags_news(tag_id, news_id) \
   \ VALUES (?,?) "
 
-insertPhotoQuery :: Query
+insertPhotoQuery :: PSQL.Query
 insertPhotoQuery =
   "INSERT INTO photos(id, url, news_id) \
   \ VALUES (default,?,?) "
 
-getPhotosByNewsId :: Connection -> Integer -> IO [Photo]
-getPhotosByNewsId conn newsId = query conn dbQuery (Only newsId)
+getPhotosByNewsId :: PSQL.Connection -> Integer -> IO [Photo]
+getPhotosByNewsId conn newsId = PSQL.query conn dbQuery [newsId]
   where dbQuery = "SELECT * FROM photos \
         \WHERE news_id = ?"

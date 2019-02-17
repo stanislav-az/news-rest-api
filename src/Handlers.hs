@@ -2,75 +2,93 @@
 
 module Handlers where
 
-import           Network.Wai
-import qualified Database.PostgreSQL.Simple    as PSQL
-import qualified Network.HTTP.Types            as HTTP
-import qualified Data.ByteString.Lazy          as LB
-import qualified Data.ByteString.Lazy.Char8    as BC
+import qualified Network.Wai                   as W
+                                                ( Response(..) )
 import qualified Control.Exception             as E
-import           Data.Aeson
-import           Data.Proxy
+                                                ( try )
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , encode
+                                                , eitherDecode
+                                                )
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import qualified Control.Monad                 as M
+                                                ( join )
+import qualified Control.Monad.IO.Class        as MIO
+                                                ( liftIO )
 import           Serializer.Author
 import           Serializer.Tag
 import           Serializer.Category
 import           Serializer.News
 import           Serializer.Commentary
-import           Database.Queries.Author
-import           Database.Queries.Tag
-import           Database.Queries.Category
-import           Database.Queries.News
-import           Database.Queries.Commentary
-import           Helpers
-import           WebServer.HandlerMonad
-import           WebServer.MonadDatabase
-import           WebServer.HandlerClass
-import           WebServer.Error
-import qualified WebServer.Database            as D
-import           WebServer.UrlParser.Pagination
-import           WebServer.UrlParser.Filter
-import           WebServer.UrlParser.Dynamic
-import           WebServer.UrlParser.Sorter
-import qualified Config                        as C
-import           Control.Monad.Reader
-import           Control.Monad.Except
-import           Data.Maybe                     ( fromMaybe )
-import qualified Data.Text                     as T
-
-
+import           Database.Queries.Author        ( updateAuthor )
+import           Database.Queries.Tag           ( updateTag )
+import           Database.Queries.Category      ( updateCategory )
+import           Database.Queries.News          ( selectNewsNested
+                                                , findNewsNested
+                                                , updateNews
+                                                , publishNews
+                                                )
+import           Database.Queries.Commentary    ( insertCommentary
+                                                , selectCommentariesByNewsId
+                                                )
+import           WebServer.HandlerMonad         ( Handler(..)
+                                                , HandlerError(..)
+                                                , HandlerEnv(..)
+                                                , okResponseWithJSONBody
+                                                , okResponse
+                                                )
+import           WebServer.MonadDatabase        ( Inserter(..)
+                                                , Selector(..)
+                                                , Deleter(..)
+                                                )
+import           WebServer.HandlerClass         ( MonadHTTP(..) )
+import           WebServer.Error                ( throwPSQLError
+                                                , throwParseError
+                                                , withPSQLException
+                                                )
+import           WebServer.UrlParser.Pagination ( getLimitOffset )
+import           WebServer.UrlParser.Sorter     ( getSorter )
+import           WebServer.UrlParser.Filter     ( getFilter )
+import           WebServer.UrlParser.Dynamic    ( getIdFromUrl
+                                                , getSearchTextFromUrl
+                                                )
 
 create
   :: ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
-     , ToJSON a1
-     , FromJSON t
+     , JSON.ToJSON a1
+     , JSON.FromJSON t
      )
   => Inserter t1 m a
   -> (t -> t1)
   -> (a -> a1)
-  -> m Response
+  -> m W.Response
 create inserter requestToEntity entityToResponse = do
   req  <- asks hRequest
   conn <- asks hConnection
   body <- getRequestBody req
-  let createEntityData = eitherDecode body
+  let createEntityData = JSON.eitherDecode body
   either (throwError . ParseError) (createEntity conn) createEntityData
  where
   createEntity conn entityData = do
     eEntity <- inserter $ requestToEntity entityData
     entity  <- either (throwError . PSQLError) pure eEntity
-    let entityJSON = encode $ entityToResponse entity
+    let entityJSON = JSON.encode $ entityToResponse entity
     okResponseWithJSONBody entityJSON
 
 list
   :: ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
-     , ToJSON b
+     , JSON.ToJSON b
      )
   => Selector m a
   -> (a -> b)
-  -> m Response
+  -> m W.Response
 list selector entityToResponse = do
   req      <- asks hRequest
   maxLimit <- asks hMaxLimit
@@ -78,13 +96,13 @@ list selector entityToResponse = do
   eEntities <- selector pagination
   entities  <- either (throwError . PSQLError) pure eEntities
   let responseEntities  = entityToResponse <$> entities
-      printableEntities = encode responseEntities
+      printableEntities = JSON.encode responseEntities
   okResponseWithJSONBody printableEntities
 
 remove
   :: (MonadReader HandlerEnv m, MonadError HandlerError m, MonadHTTP m)
   => Deleter m
-  -> m Response
+  -> m W.Response
 remove deleter = do
   dpMap    <- asks hDynamicPathsMap
   entityId <- either throwParseError pure $ getIdFromUrl dpMap
@@ -100,7 +118,7 @@ updateAuthorHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateAuthorData = eitherDecode body
+  let updateAuthorData = JSON.eitherDecode body
   authorId <- either throwParseError pure $ getIdFromUrl dpMap
   conn     <- asks hConnection
   either (throwError . ParseError)
@@ -109,9 +127,9 @@ updateAuthorHandler = do
  where
   goUpdateAuthor conn authorId authorData = do
     let partial = requestToUpdateAuthor authorData
-    eAuthor <- liftIO $ E.try $ updateAuthor conn authorId partial
+    eAuthor <- MIO.liftIO $ E.try $ updateAuthor conn authorId partial
     author  <- either throwPSQLError pure eAuthor
-    let authorJSON = encode $ authorToUpdateResponse author
+    let authorJSON = JSON.encode $ authorToUpdateResponse author
     okResponseWithJSONBody authorJSON
 
 updateTagHandler :: Handler
@@ -119,16 +137,16 @@ updateTagHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateTagData = eitherDecode body
+  let updateTagData = JSON.eitherDecode body
   tagId <- either throwParseError pure $ getIdFromUrl dpMap
   conn  <- asks hConnection
   either (throwError . ParseError) (goUpdateTag conn tagId) updateTagData
  where
   goUpdateTag conn tagId tagData = do
     let partial = requestToUpdateTag tagData
-    eTag <- liftIO $ E.try $ updateTag conn tagId partial
+    eTag <- MIO.liftIO $ E.try $ updateTag conn tagId partial
     tag  <- either throwPSQLError pure eTag
-    let tagJSON = encode $ tagToResponse tag
+    let tagJSON = JSON.encode $ tagToResponse tag
     okResponseWithJSONBody tagJSON
 
 updateCategoryHandler :: Handler
@@ -136,7 +154,7 @@ updateCategoryHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateCategoryData = eitherDecode body
+  let updateCategoryData = JSON.eitherDecode body
   categoryId <- either throwParseError pure $ getIdFromUrl dpMap
   conn       <- asks hConnection
   either (throwError . ParseError)
@@ -145,9 +163,9 @@ updateCategoryHandler = do
  where
   goUpdateCategory conn categoryId categoryData = do
     let partial = requestToUpdateCategory categoryData
-    eCategory <- liftIO $ E.try $ updateCategory conn categoryId partial
+    eCategory <- MIO.liftIO $ E.try $ updateCategory conn categoryId partial
     category  <- either throwPSQLError pure eCategory
-    let categoryJSON = encode $ categoryNestedToResponse category
+    let categoryJSON = JSON.encode $ categoryNestedToResponse category
     okResponseWithJSONBody categoryJSON
 
 updateNewsHandler :: Handler
@@ -155,16 +173,16 @@ updateNewsHandler = do
   req   <- asks hRequest
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let updateNewsData = eitherDecode body
+  let updateNewsData = JSON.eitherDecode body
   newsId <- either throwParseError pure $ getIdFromUrl dpMap
   conn   <- asks hConnection
   either (throwError . ParseError) (goUpdateNews conn newsId) updateNewsData
  where
   goUpdateNews conn newsId newsData = do
     let partial = requestToUpdateNews newsData
-    eNews <- liftIO $ E.try $ updateNews conn newsId partial
+    eNews <- MIO.liftIO $ E.try $ updateNews conn newsId partial
     news  <- either throwPSQLError pure eNews
-    let newsJSON = encode $ newsToResponse news
+    let newsJSON = JSON.encode $ newsToResponse news
     okResponseWithJSONBody newsJSON
 
 publishNewsHandler :: Handler
@@ -174,9 +192,9 @@ publishNewsHandler = do
   body   <- getRequestBody req
   newsId <- either throwParseError pure $ getIdFromUrl dpMap
   conn   <- asks hConnection
-  eNews  <- liftIO $ E.try $ publishNews conn newsId
+  eNews  <- MIO.liftIO $ E.try $ publishNews conn newsId
   news   <- either throwPSQLError pure eNews
-  let newsJSON = encode $ newsToResponse news
+  let newsJSON = JSON.encode $ newsToResponse news
   okResponseWithJSONBody newsJSON
 
 listCommentariesHandler :: Handler
@@ -187,12 +205,12 @@ listCommentariesHandler = do
   maxLimit <- asks hMaxLimit
   let pagination = getLimitOffset maxLimit req
   newsId        <- either throwParseError pure $ getIdFromUrl dpMap
-  eCommentaries <- liftIO $ E.try $ selectCommentariesByNewsId conn
-                                                               pagination
-                                                               newsId
+  eCommentaries <- MIO.liftIO $ E.try $ selectCommentariesByNewsId conn
+                                                                   pagination
+                                                                   newsId
   commentaries <- either throwPSQLError pure eCommentaries
   let responseCommentaries  = commentaryToResponse <$> commentaries
-      printableCommentaries = encode responseCommentaries
+      printableCommentaries = JSON.encode responseCommentaries
   okResponseWithJSONBody printableCommentaries
 
 createCommentaryHandler :: Handler
@@ -201,19 +219,19 @@ createCommentaryHandler = do
   conn  <- asks hConnection
   dpMap <- asks hDynamicPathsMap
   body  <- getRequestBody req
-  let createCommentaryData = eitherDecode body
+  let createCommentaryData = JSON.eitherDecode body
   newsId <- either throwParseError pure $ getIdFromUrl dpMap
   either (throwError . ParseError)
          (createCommentary conn newsId)
          createCommentaryData
  where
   createCommentary conn newsId commentaryData = do
-    eCommentary <- liftIO $ withPSQLException $ insertCommentary
+    eCommentary <- MIO.liftIO $ withPSQLException $ insertCommentary
       conn
       newsId
       (requestToCommentary commentaryData)
-    commentary <- either (throwError . PSQLError) pure $ join eCommentary
-    let commentaryJSON = encode $ commentaryToResponse commentary
+    commentary <- either (throwError . PSQLError) pure $ M.join eCommentary
+    let commentaryJSON = JSON.encode $ commentaryToResponse commentary
     okResponseWithJSONBody commentaryJSON
 
 searchNews :: Handler
@@ -225,13 +243,13 @@ searchNews = do
   let pagination = getLimitOffset maxLimit req
       sorter     = getSorter req
   searchText <- either throwParseError pure $ getSearchTextFromUrl dpMap
-  eNews      <- liftIO $ withPSQLException $ findNewsNested conn
-                                                            pagination
-                                                            searchText
-                                                            sorter
+  eNews      <- MIO.liftIO $ withPSQLException $ findNewsNested conn
+                                                                pagination
+                                                                searchText
+                                                                sorter
   news <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
-      printableNews = encode responseNews
+      printableNews = JSON.encode responseNews
   okResponseWithJSONBody printableNews
 
 listNews :: Handler
@@ -242,11 +260,11 @@ listNews = do
   let pagination = getLimitOffset maxLimit req
       filter     = getFilter req
       sorter     = getSorter req
-  eNews <- liftIO $ withPSQLException $ selectNewsNested conn
-                                                         pagination
-                                                         filter
-                                                         sorter
+  eNews <- MIO.liftIO $ withPSQLException $ selectNewsNested conn
+                                                             pagination
+                                                             filter
+                                                             sorter
   news <- either (throwError . PSQLError) pure eNews
   let responseNews  = newsToResponse <$> news
-      printableNews = encode responseNews
+      printableNews = JSON.encode responseNews
   okResponseWithJSONBody printableNews

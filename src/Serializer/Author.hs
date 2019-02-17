@@ -1,13 +1,27 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+
 module Serializer.Author where
 
 import qualified Data.Text                     as T
-import           Data.Aeson
-import           Data.Time
-import           Database.Models.Author
-import           Database.Models.User
-import           Serializer.User
+                                                ( Text(..) )
+import qualified Data.Time                     as Time
+                                                ( LocalTime(..) )
+import qualified Data.Aeson                    as JSON
+                                                ( FromJSON(..)
+                                                , ToJSON(..)
+                                                , withObject
+                                                , object
+                                                )
+import           Data.Aeson                     ( (.:)
+                                                , (.=)
+                                                )
+import           Database.Models.Author         ( Author(..)
+                                                , AuthorRaw(..)
+                                                )
+import           Database.Models.User           ( User(..)
+                                                , UserRaw(..)
+                                                )
 
 data CreateAuthorRequest = CreateAuthorRequest {
   createAuthorRequestName :: T.Text,
@@ -16,8 +30,8 @@ data CreateAuthorRequest = CreateAuthorRequest {
   createAuthorRequestDescription :: T.Text
 }
 
-instance FromJSON CreateAuthorRequest where
-  parseJSON = withObject "CreateAuthorRequest" $ \v ->
+instance JSON.FromJSON CreateAuthorRequest where
+  parseJSON = JSON.withObject "CreateAuthorRequest" $ \v ->
     CreateAuthorRequest
       <$> v
       .:  "name"
@@ -30,8 +44,8 @@ instance FromJSON CreateAuthorRequest where
 
 newtype UpdateAuthorRequest = UpdateAuthorRequest AuthorRaw
 
-instance FromJSON UpdateAuthorRequest where
-  parseJSON = withObject "UpdateAuthorRequest"
+instance JSON.FromJSON UpdateAuthorRequest where
+  parseJSON = JSON.withObject "UpdateAuthorRequest"
     $ \v -> UpdateAuthorRequest . AuthorRaw <$> v .: "description"
 
 data CreateAuthorResponse = CreateAuthorResponse {
@@ -41,12 +55,12 @@ data CreateAuthorResponse = CreateAuthorResponse {
   createAuthorResponseDescription :: T.Text,
   createAuthorResponseId :: Integer,
   createAuthorResponseUserId :: Integer,
-  createAuthorResponseDateCreated :: LocalTime,
+  createAuthorResponseDateCreated :: Time.LocalTime,
   createAuthorResponseIsAdmin :: Bool
 }
 
-instance ToJSON CreateAuthorResponse where
-  toJSON CreateAuthorResponse {..} = object
+instance JSON.ToJSON CreateAuthorResponse where
+  toJSON CreateAuthorResponse {..} = JSON.object
     [ "name" .= createAuthorResponseName
     , "surname" .= createAuthorResponseSurname
     , "avatar" .= createAuthorResponseAvatar
@@ -59,8 +73,8 @@ instance ToJSON CreateAuthorResponse where
 
 newtype UpdateAuthorResponse = UpdateAuthorResponse Author
 
-instance ToJSON UpdateAuthorResponse where
-  toJSON (UpdateAuthorResponse Author {..}) = object
+instance JSON.ToJSON UpdateAuthorResponse where
+  toJSON (UpdateAuthorResponse Author {..}) = JSON.object
     [ "id" .= authorId
     , "user_id" .= authorUserId
     , "description" .= authorDescription

@@ -2,32 +2,50 @@
 
 module Main where
 
-import           WebServer.Application
-import           Database.Migration
-import qualified Config                        as C
 import qualified Control.Logger.Simple         as L
-import           WebServer.HandlerClass
-import           Network.Wai.Handler.Warp       ( run )
-import           Routes
-import           WebServer.HandlerMonad
-import           Network.Wai
-import qualified Database.Connection           as DC
+                                                ( withGlobalLogging )
+import qualified Network.Wai.Handler.Warp      as W
+                                                ( run )
+import qualified Network.Wai                   as W
+                                                ( Request(..)
+                                                , Response(..)
+                                                )
 import qualified Database.PostgreSQL.Simple    as PSQL
-import           WebServer.UrlParser.Pagination
-import           Control.Monad.Except
-import           Control.Exception              ( bracket )
-import           Helpers
-import           WebServer.Error
+                                                ( close )
+import qualified Control.Monad.Except          as E
+                                                ( catchError )
+import qualified Control.Exception             as E
+                                                ( bracket )
+import           WebServer.Application          ( newsServer
+                                                , withLogging
+                                                )
+import           Config                         ( getLogConfig
+                                                , loadConfig
+                                                , getByName
+                                                )
+import           WebServer.HandlerClass         ( logError
+                                                , logInfo
+                                                )
+import           Routes                         ( routes )
+import           WebServer.HandlerMonad         ( DynamicPathsMap(..)
+                                                , Handler(..)
+                                                , runHandler
+                                                , serverErrorResponse
+                                                )
+import           Database.Connection            ( connect )
+import           WebServer.UrlParser.Pagination ( Limit(..) )
+import           Helpers                        ( texify )
+import           WebServer.Error                ( manageHandlerError )
 
 main :: IO ()
-main = C.getLogConfig >>= \logConf -> L.withGlobalLogging logConf $ do
+main = getLogConfig >>= \logConf -> L.withGlobalLogging logConf $ do
   logInfo "Starting server at: http://localhost:8080/"
-  run 8080 (withLogging $ newsServer routes runHAndCatchE)
+  W.run 8080 (withLogging $ newsServer routes runHAndCatchE)
 
-runHAndCatchE :: Request -> DynamicPathsMap -> Handler -> IO Response
+runHAndCatchE :: W.Request -> DynamicPathsMap -> Handler -> IO W.Response
 runHAndCatchE req dpMap handler = do
-  conf     <- C.loadConfig
-  maxLimit <- Limit <$> C.get conf "pagination.max_limit"
-  res      <- bracket (DC.connect conf) PSQL.close $ \conn ->
-    runHandler maxLimit dpMap req conn $ catchError handler manageHandlerError
+  conf     <- loadConfig
+  maxLimit <- Limit <$> getByName conf "pagination.max_limit"
+  res      <- E.bracket (connect conf) PSQL.close $ \conn ->
+    runHandler maxLimit dpMap req conn $ E.catchError handler manageHandlerError
   either (\e -> (logError $ texify e) >> serverErrorResponse) pure res

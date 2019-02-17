@@ -3,15 +3,17 @@
 module WebServer.Router where
 
 import qualified Data.Text                     as T
+                                                ( Text(..) )
 import qualified Data.ByteString               as BS
-import qualified Config                        as C
-import qualified Database.Connection           as DC
-import qualified Database.PostgreSQL.Simple    as PSQL
-import           Network.Wai
-import           Network.HTTP.Types
-import           WebServer.HandlerClass
-import           WebServer.HandlerMonad
-import           WebServer.UrlParser.Pagination
+                                                ( ByteString(..) )
+import qualified Network.Wai                   as W
+                                                ( Request(..)
+                                                , Response(..)
+                                                )
+import           WebServer.HandlerClass         ( MonadHTTP(..) )
+import           WebServer.HandlerMonad         ( DynamicPathsMap(..)
+                                                , notFoundResponse
+                                                )
 
 data Route = PathRoute T.Text Route | DynamicRoute T.Text Route | MethodRoute BS.ByteString
 
@@ -36,9 +38,9 @@ checkout dpMap (DynamicRoute s route) (x : xs) method =
 route
   :: MonadHTTP m
   => [(Route, b)]
-  -> Request
-  -> (Request -> DynamicPathsMap -> b -> m Response)
-  -> m Response
+  -> W.Request
+  -> (W.Request -> DynamicPathsMap -> b -> m W.Response)
+  -> m W.Response
 route [] req runH = notFoundResponse
 route (h : hs) req runH | isCorrect = runH req dpMap handler
                         | otherwise = route hs req runH
@@ -46,6 +48,6 @@ route (h : hs) req runH | isCorrect = runH req dpMap handler
   (isCorrect, dpMap) = checkout [] currentRoute path method
   currentRoute       = fst h
   handler            = snd h
-  path               = pathInfo req
-  method             = requestMethod req
+  path               = W.pathInfo req
+  method             = W.requestMethod req
 

@@ -3,15 +3,22 @@
 module Database.Connection where
 
 import qualified Database.PostgreSQL.Simple    as PSQL
+                                                ( Connection(..)
+                                                , ConnectInfo(..)
+                                                , connect
+                                                )
 import qualified Config                        as C
+                                                ( Config(..)
+                                                , getByName
+                                                )
 
 connectInfo :: C.Config -> IO PSQL.ConnectInfo
 connectInfo conf = do
-  host     <- C.get conf "database.host"
-  port     <- C.get conf "database.port"
-  user     <- C.get conf "database.user"
-  password <- C.get conf "database.password"
-  database <- C.get conf "database.database"
+  host     <- C.getByName conf "database.host"
+  port     <- C.getByName conf "database.port"
+  user     <- C.getByName conf "database.user"
+  password <- C.getByName conf "database.password"
+  database <- C.getByName conf "database.database"
   pure $ PSQL.ConnectInfo { PSQL.connectHost     = host
                           , PSQL.connectPort     = port
                           , PSQL.connectUser     = user
