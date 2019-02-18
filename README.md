@@ -23,18 +23,39 @@ This is a REST API news web server, runs on [warp](http://hackage.haskell.org/pa
   - By category name ?sort_by=category.
   - By date created ?sort_by=date.
   - By number of photos ?sort_by=photos.
-### GET api/authors
-* Supports pagination. To receive paginated data provide query parameters of limit and offset. Example: ?limit=15&offset=0.
-### GET api/users
-* Supports pagination. To receive paginated data provide query parameters of limit and offset. Example: ?limit=15&offset=0.
-### GET api/tags
-* Supports pagination. To receive paginated data provide query parameters of limit and offset. Example: ?limit=15&offset=0.
-### GET api/categories
-* Supports pagination. To receive paginated data provide query parameters of limit and offset. Example: ?limit=15&offset=0.
 ### GET api/posts/1/comments
 * Gets comments to a specific post by its id.
 * Supports pagination. To receive paginated data provide query parameters of limit and offset. Example: ?limit=15&offset=0.
-
+### GET methods
+* api/authors
+* api/users
+* api/tags
+* api/categories
+### POST methods
+* api/authors :no_entry_sign:
+* api/users
+* api/tags :no_entry_sign:
+* api/categories :no_entry_sign:
+* api/posts
+* api/posts/1/comments
+### Publish news
+* POST api/posts/1 :id:
+### PATCH methods
+* api/authors/1 :no_entry_sign:
+* api/tags/1 :no_entry_sign:
+* api/categories/1 :no_entry_sign:
+* api/posts/1 :id:
+### DELETE methods
+* api/authors/1 :no_entry_sign:
+* api/users/1 :no_entry_sign:
+* api/tags/1 :no_entry_sign:
+* api/categories/1 :no_entry_sign:
+* api/posts/1 :id:
+* api/comments/1 :id:
+### Authorization
+* Authorization is accomplished by providing user id in Authorization header.
+* Paths which require admin authorization are marked by :no_entry_sign:.
+* Paths which require authorization by author are marked by :id:.
 ## :ledger: Logging
 Supported levels of logging are: Debug, Info, Warn, Error, the log writes to `<./logs/news-server.log>` by default. 
 ## :wrench: Configurability

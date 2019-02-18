@@ -38,7 +38,7 @@ getLogConfig = do
   logToStdout <- getByName conf "logging.log_to_stdout"
   logToFile   <- getMaybe conf "logging.log_to_file"
   let logDir = D.takeDirectory <$> logToFile
-  maybe (pure ()) (D.createDirectoryIfMissing False) logDir
+  maybe (pure ()) (D.createDirectoryIfMissing True) logDir
   pure $ L.LogConfig { L.lc_file = logToFile, L.lc_stderr = logToStdout }
 
 getByName :: C.Configured a => C.Config -> C.Name -> IO a
