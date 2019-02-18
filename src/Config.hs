@@ -23,6 +23,10 @@ import qualified Data.Configurator.Types       as C
                                                 )
 import qualified Control.Logger.Simple         as L
                                                 ( LogConfig(..) )
+import qualified System.FilePath.Posix         as D
+                                                ( takeDirectory )
+import qualified System.Directory              as D
+                                                ( createDirectoryIfMissing )
 
 loadConfig :: IO C.Config
 loadConfig =
@@ -33,6 +37,8 @@ getLogConfig = do
   conf        <- loadConfig
   logToStdout <- getByName conf "logging.log_to_stdout"
   logToFile   <- getMaybe conf "logging.log_to_file"
+  let logDir = D.takeDirectory <$> logToFile
+  maybe (pure ()) (D.createDirectoryIfMissing False) logDir
   pure $ L.LogConfig { L.lc_file = logToFile, L.lc_stderr = logToStdout }
 
 getByName :: C.Configured a => C.Config -> C.Name -> IO a
