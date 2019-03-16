@@ -7,7 +7,8 @@ import Control.Monad.Except
 import Control.Monad.Reader
 import qualified Data.ByteString.Char8 as BS (unpack)
 import Database.Models.User (User(..))
-import Helpers (eitherToMaybe, textToInteger)
+import Ext.Data.Text.Read (textToInteger)
+import Ext.Data.Either (eitherToMaybe)
 import qualified Network.Wai as W (Request(..), requestHeaders)
 import qualified Text.Read as R (readMaybe)
 import WebServer.HandlerMonad

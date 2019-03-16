@@ -29,7 +29,7 @@ import Database.Queries.Queries
   , showToQuery
   , textToQuery
   )
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import WebServer.Database (Limit(..), Offset(..))
 import WebServer.UrlParser.Filter (DateCreated(..), Filter(..), TagIds(..))
 import WebServer.UrlParser.Sorter (Sorter(..))
@@ -77,7 +77,7 @@ updateNewsQuery (NewsRawPartial NewsRawT {..}) =
   let params =
         makeQueryParameters
           [ ("title", newsRawTitle)
-          , ("category_id", texify <$> newsRawCategoryId)
+          , ("category_id", textify <$> newsRawCategoryId)
           , ("content", newsRawContent)
           , ("main_photo", newsRawMainPhoto)
           ]

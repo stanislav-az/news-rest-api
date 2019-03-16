@@ -19,7 +19,7 @@ import Database.Models.Commentary (Commentary(..))
 import Database.Models.Tag (Tag(..), TagRaw(..))
 import Database.Models.User (User(..), UserRaw(..))
 import qualified Database.PostgreSQL.Simple as PSQL (close)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import MockMonad
 import MockRoutes (mockRoutes)
 import qualified Network.Wai as W
@@ -261,7 +261,7 @@ runMockHandler req dpMap handler = do
       pure $
       runMock database body (Limit 3) dpMap req conn $
       catchError handler manageHandlerError
-  either (\e -> (logError $ texify e) >> serverErrorResponse) pure res
+  either (\e -> (logError $ textify e) >> serverErrorResponse) pure res
 
 spec :: Spec
 spec =

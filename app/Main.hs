@@ -8,7 +8,7 @@ import qualified Control.Logger.Simple as L (withGlobalLogging)
 import qualified Control.Monad.Except as E (catchError)
 import Database.Connection (connect)
 import qualified Database.PostgreSQL.Simple as PSQL (close)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import qualified Network.Wai as W (Request(..), Response(..))
 import qualified Network.Wai.Handler.Warp as W (run)
 import Routes (routes)
@@ -38,4 +38,4 @@ runHAndCatchE req dpMap handler = do
     E.bracket (connect conf) PSQL.close $ \conn ->
       runHandler maxLimit dpMap req conn $
       E.catchError handler manageHandlerError
-  either (\e -> (logError $ texify e) >> serverErrorResponse) pure res
+  either (\e -> (logError $ textify e) >> serverErrorResponse) pure res

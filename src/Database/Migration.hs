@@ -13,7 +13,7 @@ import qualified Database.PostgreSQL.Simple.Migration as PSQL
   , MigrationResult(..)
   , runMigrations
   )
-import Helpers (texify)
+import Ext.Data.Text (textify)
 import qualified System.Directory as D (createDirectoryIfMissing)
 import WebServer.HandlerClass (MonadLogger(..))
 
@@ -27,7 +27,7 @@ migrate :: PSQL.Connection -> IO ()
 migrate conn = do
   result <- PSQL.withTransaction conn (PSQL.runMigrations False conn cmds)
   case result of
-    PSQL.MigrationError err -> logError $ texify err
+    PSQL.MigrationError err -> logError $ textify err
     _ -> return ()
   where
     cmds =

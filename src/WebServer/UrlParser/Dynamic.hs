@@ -3,7 +3,7 @@
 module WebServer.UrlParser.Dynamic where
 
 import qualified Data.Text as T (Text(..))
-import Helpers (textToInteger)
+import Ext.Data.Text.Read (textToInteger)
 import WebServer.HandlerMonad (DynamicPathsMap(..))
 
 getIdFromUrl :: DynamicPathsMap -> Either String Integer

@@ -14,7 +14,7 @@ import qualified Database.PostgreSQL.Simple as PSQL
   , query
   )
 import Database.Queries.Queries (makeQueryParameters)
-import Helpers (texify)
+import Ext.Data.Text (textify)
 
 updateCategory ::
      PSQL.Connection -> Integer -> CategoryRawPartial -> IO CategoryNested
@@ -27,7 +27,7 @@ updateCategoryQuery CategoryRawPartial {..} =
   let params =
         makeQueryParameters
           [ ("name", categoryRawPartialName)
-          , ("parent_id", texify <$> categoryRawPartialParentId)
+          , ("parent_id", textify <$> categoryRawPartialParentId)
           ]
    in "UPDATE categories SET " <> params <> "WHERE id = ? " <>
       "RETURNING id, name, parent_id"

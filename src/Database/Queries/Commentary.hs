@@ -7,7 +7,7 @@ import Database.Models.Commentary (Commentary(..), CommentaryRaw(..))
 import Database.Models.News (News(..))
 import Database.Models.User (User(..))
 import qualified Database.PostgreSQL.Simple as PSQL (Connection(..), query)
-import Helpers (listToEither)
+import Ext.Data.Either (listToEither)
 import WebServer.Database (Limit(..), Offset(..), selectById)
 
 selectCommentariesByNewsId ::
