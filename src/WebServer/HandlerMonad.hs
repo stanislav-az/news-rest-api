@@ -3,62 +3,63 @@
 
 module WebServer.HandlerMonad where
 
-import qualified Database.PostgreSQL.Simple    as PSQL
-                                                ( Connection(..) )
-import qualified Data.Text                     as T
-                                                ( Text(..) )
-import qualified Network.HTTP.Types            as HTTP
-                                                ( status404
-                                                , status204
-                                                , status200
-                                                , status500
-                                                , status422
-                                                , status400
-                                                )
-import qualified Data.ByteString.Lazy.Char8    as B8
-                                                ( ByteString(..) )
-import   Control.Monad.Reader          
-import   Control.Monad.Except       
-import qualified Control.Monad.IO.Class        as MIO
-                                                ( MonadIO(..)
-                                                , liftIO
-                                                )
-import qualified Network.Wai                   as W
-                                                ( Request(..)
-                                                , Response(..)
-                                                )
-import           WebServer.HandlerClass         ( MonadLogger(..)
-                                                , MonadHTTP(..)
-                                                )
-import           WebServer.MonadDatabase        ( Authorization(..)
-                                                , PersistentCommentary(..)
-                                                , PersistentAuthor(..)
-                                                , PersistentUser(..)
-                                                , PersistentTag(..)
-                                                , PersistentCategory(..)
-                                                , PersistentNews(..)
-                                                )
-import           WebServer.UrlParser.Pagination ( Limit(..) )
+import Control.Monad.Except
+import qualified Control.Monad.IO.Class as MIO (MonadIO(..), liftIO)
+import Control.Monad.Reader
+import qualified Data.ByteString.Lazy.Char8 as B8 (ByteString(..))
+import qualified Data.Text as T (Text(..))
+import qualified Database.PostgreSQL.Simple as PSQL (Connection(..))
+import qualified Network.HTTP.Types as HTTP
+  ( status200
+  , status204
+  , status400
+  , status404
+  , status422
+  , status500
+  )
+import qualified Network.Wai as W (Request(..), Response(..))
+import WebServer.HandlerClass (MonadHTTP(..), MonadLogger(..))
+import WebServer.MonadDatabase
+  ( Authorization(..)
+  , PersistentAuthor(..)
+  , PersistentCategory(..)
+  , PersistentCommentary(..)
+  , PersistentNews(..)
+  , PersistentTag(..)
+  , PersistentUser(..)
+  )
+import WebServer.UrlParser.Pagination (Limit(..))
 
 -- dynamic path information type and value pairs
 type DynamicPathsMap = [(T.Text, T.Text)]
 
 type Handler = HandlerMonad W.Response
 
-data HandlerEnv = HandlerEnv {
-    hMaxLimit :: Limit,
-    hDynamicPathsMap :: DynamicPathsMap,
-    hRequest :: W.Request,
-    hConnection :: PSQL.Connection
-}
+data HandlerEnv = HandlerEnv
+  { hMaxLimit :: Limit
+  , hDynamicPathsMap :: DynamicPathsMap
+  , hRequest :: W.Request
+  , hConnection :: PSQL.Connection
+  }
 
-data HandlerError = PSQLError String | ParseError String | Forbidden deriving (Show)
+data HandlerError
+  = PSQLError String
+  | ParseError String
+  | Forbidden
+  deriving (Show)
 
-newtype HandlerMonad a = HandlerMonad {runHandlerMonad ::ReaderT HandlerEnv (ExceptT HandlerError IO) a}
-  deriving (Functor, Applicative, Monad, MIO.MonadIO,MonadReader HandlerEnv, MonadError HandlerError)
+newtype HandlerMonad a = HandlerMonad
+  { runHandlerMonad :: ReaderT HandlerEnv (ExceptT HandlerError IO) a
+  } deriving ( Functor
+             , Applicative
+             , Monad
+             , MIO.MonadIO
+             , MonadReader HandlerEnv
+             , MonadError HandlerError
+             )
 
-runHandler
-  :: Limit
+runHandler ::
+     Limit
   -> DynamicPathsMap
   -> W.Request
   -> PSQL.Connection
@@ -66,22 +67,24 @@ runHandler
   -> IO (Either HandlerError a)
 runHandler mLimit dpMap req conn =
   runExceptT . (`runReaderT` env) . runHandlerMonad
- where
-  env = HandlerEnv { hMaxLimit        = mLimit
-                   , hDynamicPathsMap = dpMap
-                   , hRequest         = req
-                   , hConnection      = conn
-                   }
+  where
+    env =
+      HandlerEnv
+        { hMaxLimit = mLimit
+        , hDynamicPathsMap = dpMap
+        , hRequest = req
+        , hConnection = conn
+        }
 
 instance Authorization HandlerMonad where
   isAuthorOfNews u i = MIO.liftIO $ isAuthorOfNews u i
   isAuthorOfCommentary u i = MIO.liftIO $ isAuthorOfCommentary u i
 
 instance PersistentUser HandlerMonad where
-  selectUsers    = MIO.liftIO . selectUsers
+  selectUsers = MIO.liftIO . selectUsers
   selectUserById = MIO.liftIO . selectUserById
   deleteUserById = MIO.liftIO . deleteUserById
-  insertUser     = MIO.liftIO . insertUser
+  insertUser = MIO.liftIO . insertUser
 
 instance MonadHTTP HandlerMonad where
   getRequestBody = MIO.liftIO . getRequestBody
@@ -89,8 +92,8 @@ instance MonadHTTP HandlerMonad where
 
 instance MonadLogger HandlerMonad where
   logDebug = MIO.liftIO . logDebug
-  logInfo  = MIO.liftIO . logInfo
-  logWarn  = MIO.liftIO . logWarn
+  logInfo = MIO.liftIO . logInfo
+  logWarn = MIO.liftIO . logWarn
   logError = MIO.liftIO . logError
 
 notFoundResponse :: (MonadHTTP m) => m W.Response
@@ -114,23 +117,23 @@ unprocessableEntityResponse :: (MonadHTTP m) => m W.Response
 unprocessableEntityResponse = respond HTTP.status422 [] ""
 
 instance PersistentAuthor HandlerMonad where
-  selectAuthors    = MIO.liftIO . selectAuthors
+  selectAuthors = MIO.liftIO . selectAuthors
   deleteAuthorById = MIO.liftIO . deleteAuthorById
-  insertAuthor     = MIO.liftIO . insertAuthor
+  insertAuthor = MIO.liftIO . insertAuthor
 
 instance PersistentTag HandlerMonad where
-  selectTags    = MIO.liftIO . selectTags
+  selectTags = MIO.liftIO . selectTags
   deleteTagById = MIO.liftIO . deleteTagById
-  insertTag     = MIO.liftIO . insertTag
+  insertTag = MIO.liftIO . insertTag
 
 instance PersistentCategory HandlerMonad where
   selectCategoriesNested = MIO.liftIO . selectCategoriesNested
-  deleteCategoryById     = MIO.liftIO . deleteCategoryById
-  insertCategory         = MIO.liftIO . insertCategory
+  deleteCategoryById = MIO.liftIO . deleteCategoryById
+  insertCategory = MIO.liftIO . insertCategory
 
 instance PersistentNews HandlerMonad where
   deleteNewsById = MIO.liftIO . deleteNewsById
-  insertNews     = MIO.liftIO . insertNews
+  insertNews = MIO.liftIO . insertNews
 
 instance PersistentCommentary HandlerMonad where
   deleteCommentaryById = MIO.liftIO . deleteCommentaryById

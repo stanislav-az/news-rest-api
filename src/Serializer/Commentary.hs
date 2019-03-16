@@ -3,39 +3,35 @@
 
 module Serializer.Commentary where
 
-import qualified Data.Aeson                    as JSON
-                                                ( FromJSON(..)
-                                                , ToJSON(..)
-                                                , withObject
-                                                , object
-                                                )
-import           Data.Aeson                     ( (.:)
-                                                , (.=)
-                                                )
-import           Database.Models.Commentary     ( Commentary(..)
-                                                , CommentaryRaw(..)
-                                                )
+import qualified Data.Aeson as JSON
+  ( FromJSON(..)
+  , ToJSON(..)
+  , object
+  , withObject
+  )
+import Data.Aeson ((.:), (.=))
+import Database.Models.Commentary (Commentary(..), CommentaryRaw(..))
 
-newtype CreateCommentaryRequest = CreateCommentaryRequest CommentaryRaw
+newtype CreateCommentaryRequest =
+  CreateCommentaryRequest CommentaryRaw
+
+newtype CreateCommentaryResponse =
+  CreateCommentaryResponse Commentary
 
 instance JSON.FromJSON CreateCommentaryRequest where
-  parseJSON = JSON.withObject "CreateCommentaryRequest" $ \v ->
-    fmap CreateCommentaryRequest
-      $   CommentaryRaw
-      <$> v
-      .:  "content"
-      <*> v
-      .:  "user_id"
-
-newtype CreateCommentaryResponse = CreateCommentaryResponse Commentary
+  parseJSON =
+    JSON.withObject "CreateCommentaryRequest" $ \v ->
+      fmap CreateCommentaryRequest $
+      CommentaryRaw <$> v .: "content" <*> v .: "user_id"
 
 instance JSON.ToJSON CreateCommentaryResponse where
-  toJSON (CreateCommentaryResponse Commentary {..}) = JSON.object
-    [ "id" .= commentaryId
-    , "content" .= commentaryContent
-    , "news_id" .= commentaryNewsId
-    , "user_id" .= commentaryUserId
-    ]
+  toJSON (CreateCommentaryResponse Commentary {..}) =
+    JSON.object
+      [ "id" .= commentaryId
+      , "content" .= commentaryContent
+      , "news_id" .= commentaryNewsId
+      , "user_id" .= commentaryUserId
+      ]
 
 requestToCommentary :: CreateCommentaryRequest -> CommentaryRaw
 requestToCommentary (CreateCommentaryRequest commentary) = commentary

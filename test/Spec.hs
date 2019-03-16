@@ -1,14 +1,11 @@
 module Main
   ( main
-  )
-where
+  ) where
 
-import           Test.Tasty                     ( defaultMain
-                                                , testGroup
-                                                )
-import           Test.Tasty.Hspec               ( testSpec )
-import qualified RouteSpec                     as RS
-import qualified MonadDatabaseSpec             as MD
+import qualified MonadDatabaseSpec as MD
+import qualified RouteSpec as RS
+import Test.Tasty (defaultMain, testGroup)
+import Test.Tasty.Hspec (testSpec)
 
 main :: IO ()
 main = do

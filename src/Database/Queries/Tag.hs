@@ -3,20 +3,18 @@
 
 module Database.Queries.Tag where
 
-import qualified Database.PostgreSQL.Simple    as PSQL
-                                                ( Connection(..)
-                                                , Query(..)
-                                                , query
-                                                )
-import           Database.Models.Tag            ( Tag(..)
-                                                , TagRaw(..)
-                                                )
+import Database.Models.Tag (Tag(..), TagRaw(..))
+import qualified Database.PostgreSQL.Simple as PSQL
+  ( Connection(..)
+  , Query(..)
+  , query
+  )
 
 getTagsByNewsId :: PSQL.Connection -> Integer -> IO [Tag]
 getTagsByNewsId conn newsId = PSQL.query conn dbQuery [newsId]
- where
-  dbQuery
-    = "SELECT t.id, t.name FROM tags t \
+  where
+    dbQuery =
+      "SELECT t.id, t.name FROM tags t \
       \JOIN tags_news tn ON t.id = tn.tag_id \
       \JOIN news n ON tn.news_id = n.id \
       \WHERE n.id = ?"

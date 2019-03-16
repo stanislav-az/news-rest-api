@@ -2,20 +2,13 @@
 
 module MockRoutes where
 
-import qualified Network.HTTP.Types            as HTTP
-                                                ( status200 )
-import           Routes                         ( listRoutes
-                                                , removeRoutes
-                                                , createRoutes
-                                                )
-import           MockMonad                      ( MockHandler(..) )
-import           WebServer.Router               ( Route(..) )
-import           WebServer.HandlerClass         ( MonadHTTP(..) )
+import MockMonad (MockHandler(..))
+import qualified Network.HTTP.Types as HTTP (status200)
+import Routes (createRoutes, listRoutes, removeRoutes)
+import WebServer.HandlerClass (MonadHTTP(..))
+import WebServer.Router (Route(..))
 
 mockRoutes :: [(Route, MockHandler)]
 mockRoutes =
-  (MethodRoute "GET", respond HTTP.status200 [] "Ok")
-    :  listRoutes
-    ++ createRoutes
-    ++ removeRoutes
-
+  (MethodRoute "GET", respond HTTP.status200 [] "Ok") :
+  listRoutes ++ createRoutes ++ removeRoutes

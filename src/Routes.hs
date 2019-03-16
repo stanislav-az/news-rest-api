@@ -3,50 +3,41 @@
 
 module Routes where
 
-import           Control.Monad.Reader
-import           Control.Monad.Except
-import qualified Network.Wai                   as W
-                                                ( Response(..) )
-import           Handlers
-import           Middlewares
-import           WebServer.HandlerMonad         ( Handler(..)
-                                                , HandlerError(..)
-                                                , HandlerEnv(..)
-                                                , okResponseWithJSONBody
-                                                )
-import           WebServer.HandlerClass         ( MonadHTTP(..) )
-import           WebServer.Router               ( Route(..) )
-import           WebServer.MonadDatabase        ( Authorization(..)
-                                                , PersistentCommentary(..)
-                                                , PersistentAuthor(..)
-                                                , PersistentUser(..)
-                                                , PersistentTag(..)
-                                                , PersistentCategory(..)
-                                                , PersistentNews(..)
-                                                )
-import           Serializer.User                ( requestToUser
-                                                , userToResponse
-                                                )
-import           Serializer.Author              ( requestToAuthor
-                                                , authorToResponse
-                                                )
-import           Serializer.Tag                 ( requestToTag
-                                                , tagToResponse
-                                                )
-import           Serializer.Category            ( requestToCategory
-                                                , categoryNestedToResponse
-                                                )
-import           Serializer.News                ( requestToNews
-                                                , newsToResponse
-                                                )
+import Control.Monad.Except
+import Control.Monad.Reader
+import Handlers
+import Middlewares
+import qualified Network.Wai as W (Response(..))
+import Serializer.Author (authorToResponse, requestToAuthor)
+import Serializer.Category (categoryNestedToResponse, requestToCategory)
+import Serializer.News (newsToResponse, requestToNews)
+import Serializer.Tag (requestToTag, tagToResponse)
+import Serializer.User (requestToUser, userToResponse)
+import WebServer.HandlerClass (MonadHTTP(..))
+import WebServer.HandlerMonad
+  ( Handler(..)
+  , HandlerEnv(..)
+  , HandlerError(..)
+  , okResponseWithJSONBody
+  )
+import WebServer.MonadDatabase
+  ( Authorization(..)
+  , PersistentAuthor(..)
+  , PersistentCategory(..)
+  , PersistentCommentary(..)
+  , PersistentNews(..)
+  , PersistentTag(..)
+  , PersistentUser(..)
+  )
+import WebServer.Router (Route(..))
 
 createAuthorRoute :: Route
 createAuthorRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "POST"
 
 updateAuthorRoute :: Route
 updateAuthorRoute =
-  PathRoute "api" $ PathRoute "authors" $ DynamicRoute "id" $ MethodRoute
-    "PATCH"
+  PathRoute "api" $
+  PathRoute "authors" $ DynamicRoute "id" $ MethodRoute "PATCH"
 
 getAuthorsListRoute :: Route
 getAuthorsListRoute = PathRoute "api" $ PathRoute "authors" $ MethodRoute "GET"
@@ -56,8 +47,8 @@ createUserRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "POST"
 
 deleteAuthorRoute :: Route
 deleteAuthorRoute =
-  PathRoute "api" $ PathRoute "authors" $ DynamicRoute "id" $ MethodRoute
-    "DELETE"
+  PathRoute "api" $
+  PathRoute "authors" $ DynamicRoute "id" $ MethodRoute "DELETE"
 
 deleteTagRoute :: Route
 deleteTagRoute =
@@ -69,8 +60,8 @@ deleteNewsRoute =
 
 deleteCategoryRoute :: Route
 deleteCategoryRoute =
-  PathRoute "api" $ PathRoute "categories" $ DynamicRoute "id" $ MethodRoute
-    "DELETE"
+  PathRoute "api" $
+  PathRoute "categories" $ DynamicRoute "id" $ MethodRoute "DELETE"
 
 deleteUserRoute :: Route
 deleteUserRoute =
@@ -78,8 +69,8 @@ deleteUserRoute =
 
 deleteCommentRoute :: Route
 deleteCommentRoute =
-  PathRoute "api" $ PathRoute "comments" $ DynamicRoute "id" $ MethodRoute
-    "DELETE"
+  PathRoute "api" $
+  PathRoute "comments" $ DynamicRoute "id" $ MethodRoute "DELETE"
 
 getUsersListRoute :: Route
 getUsersListRoute = PathRoute "api" $ PathRoute "users" $ MethodRoute "GET"
@@ -100,8 +91,8 @@ createCategoryRoute =
 
 updateCategoryRoute :: Route
 updateCategoryRoute =
-  PathRoute "api" $ PathRoute "categories" $ DynamicRoute "id" $ MethodRoute
-    "PATCH"
+  PathRoute "api" $
+  PathRoute "categories" $ DynamicRoute "id" $ MethodRoute "PATCH"
 
 getCategoriesListRoute :: Route
 getCategoriesListRoute =
@@ -123,58 +114,47 @@ getNewsListRoute = PathRoute "api" $ PathRoute "posts" $ MethodRoute "GET"
 
 searchNewsRoute :: Route
 searchNewsRoute =
-  PathRoute "api"
-    $ PathRoute "posts"
-    $ PathRoute "search"
-    $ DynamicRoute "search"
-    $ MethodRoute "GET"
+  PathRoute "api" $
+  PathRoute "posts" $
+  PathRoute "search" $ DynamicRoute "search" $ MethodRoute "GET"
 
 createCommentaryRoute :: Route
 createCommentaryRoute =
-  PathRoute "api"
-    $ PathRoute "posts"
-    $ DynamicRoute "id"
-    $ PathRoute "comments"
-    $ MethodRoute "POST"
+  PathRoute "api" $
+  PathRoute "posts" $
+  DynamicRoute "id" $ PathRoute "comments" $ MethodRoute "POST"
 
 getCommentariesListRoute :: Route
 getCommentariesListRoute =
-  PathRoute "api"
-    $ PathRoute "posts"
-    $ DynamicRoute "id"
-    $ PathRoute "comments"
-    $ MethodRoute "GET"
+  PathRoute "api" $
+  PathRoute "posts" $
+  DynamicRoute "id" $ PathRoute "comments" $ MethodRoute "GET"
 
 routes :: [(Route, Handler)]
 routes =
   [ (getNewsListRoute, listNews)
-    , (searchNewsRoute , searchNews)
-    , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
-    , ( publishNewsRoute
-      , checkPermission (Owner isAuthorOfNews) publishNewsHandler
-      )
-    , (getCommentariesListRoute, listCommentariesHandler)
-    , (MethodRoute "GET"       , okResponseWithJSONBody "{\"ok\": true}")
-    , ( deleteNewsRoute
-      , checkPermission (Owner isAuthorOfNews) $ remove deleteNewsById
-      )
-    , (createNewsDraftRoute , create insertNews requestToNews newsToResponse)
-    , (createCommentaryRoute, createCommentaryHandler)
-    ]
-    ++ listRoutes
-    ++ createRoutes
-    ++ removeRoutes
-    ++ updateRoutes
+  , (searchNewsRoute, searchNews)
+  , (updateNewsRoute, checkPermission (Owner isAuthorOfNews) updateNewsHandler)
+  , ( publishNewsRoute
+    , checkPermission (Owner isAuthorOfNews) publishNewsHandler)
+  , (getCommentariesListRoute, listCommentariesHandler)
+  , (MethodRoute "GET", okResponseWithJSONBody "{\"ok\": true}")
+  , ( deleteNewsRoute
+    , checkPermission (Owner isAuthorOfNews) $ remove deleteNewsById)
+  , (createNewsDraftRoute, create insertNews requestToNews newsToResponse)
+  , (createCommentaryRoute, createCommentaryHandler)
+  ] ++
+  listRoutes ++ createRoutes ++ removeRoutes ++ updateRoutes
 
 updateRoutes :: [(Route, Handler)]
 updateRoutes =
-  [ (updateAuthorRoute  , checkPermission Admin updateAuthorHandler)
-  , (updateTagRoute     , checkPermission Admin updateTagHandler)
+  [ (updateAuthorRoute, checkPermission Admin updateAuthorHandler)
+  , (updateTagRoute, checkPermission Admin updateTagHandler)
   , (updateCategoryRoute, checkPermission Admin updateCategoryHandler)
   ]
 
-listRoutes
-  :: ( MonadReader HandlerEnv m
+listRoutes ::
+     ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
@@ -186,16 +166,14 @@ listRoutes
 listRoutes =
   [ (getUsersListRoute, list selectUsers userToResponse)
   , ( getAuthorsListRoute
-    , checkPermission Admin $ list selectAuthors authorToResponse
-    )
+    , checkPermission Admin $ list selectAuthors authorToResponse)
   , (getTagsListRoute, list selectTags tagToResponse)
   , ( getCategoriesListRoute
-    , list selectCategoriesNested categoryNestedToResponse
-    )
+    , list selectCategoriesNested categoryNestedToResponse)
   ]
 
-createRoutes
-  :: ( MonadReader HandlerEnv m
+createRoutes ::
+     ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
@@ -207,20 +185,17 @@ createRoutes
 createRoutes =
   [ (createUserRoute, create insertUser requestToUser userToResponse)
   , ( createAuthorRoute
-    , checkPermission Admin
-      $ create insertAuthor requestToAuthor authorToResponse
-    )
+    , checkPermission Admin $
+      create insertAuthor requestToAuthor authorToResponse)
   , ( createTagRoute
-    , checkPermission Admin $ create insertTag requestToTag tagToResponse
-    )
+    , checkPermission Admin $ create insertTag requestToTag tagToResponse)
   , ( createCategoryRoute
-    , checkPermission Admin
-      $ create insertCategory requestToCategory categoryNestedToResponse
-    )
+    , checkPermission Admin $
+      create insertCategory requestToCategory categoryNestedToResponse)
   ]
 
-removeRoutes
-  :: ( MonadReader HandlerEnv m
+removeRoutes ::
+     ( MonadReader HandlerEnv m
      , MonadError HandlerError m
      , MonadHTTP m
      , PersistentUser m
@@ -232,11 +207,10 @@ removeRoutes
      )
   => [(Route, m W.Response)]
 removeRoutes =
-  [ (deleteUserRoute    , checkPermission Admin $ remove deleteUserById)
-  , (deleteAuthorRoute  , checkPermission Admin $ remove deleteAuthorById)
-  , (deleteTagRoute     , checkPermission Admin $ remove deleteTagById)
+  [ (deleteUserRoute, checkPermission Admin $ remove deleteUserById)
+  , (deleteAuthorRoute, checkPermission Admin $ remove deleteAuthorById)
+  , (deleteTagRoute, checkPermission Admin $ remove deleteTagById)
   , (deleteCategoryRoute, checkPermission Admin $ remove deleteCategoryById)
   , ( deleteCommentRoute
-    , checkPermission (Owner isAuthorOfCommentary) $ remove deleteCommentaryById
-    )
+    , checkPermission (Owner isAuthorOfCommentary) $ remove deleteCommentaryById)
   ]

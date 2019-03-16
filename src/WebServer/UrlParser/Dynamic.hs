@@ -2,10 +2,9 @@
 
 module WebServer.UrlParser.Dynamic where
 
-import qualified Data.Text                     as T
-                                                ( Text(..) )
-import           Helpers                        ( textToInteger )
-import           WebServer.HandlerMonad         ( DynamicPathsMap(..) )
+import qualified Data.Text as T (Text(..))
+import Helpers (textToInteger)
+import WebServer.HandlerMonad (DynamicPathsMap(..))
 
 getIdFromUrl :: DynamicPathsMap -> Either String Integer
 getIdFromUrl dpMap = getKeyFromUrl dpMap "id" >>= textToInteger

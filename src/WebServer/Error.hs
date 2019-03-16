@@ -3,40 +3,34 @@
 
 module WebServer.Error where
 
-import qualified Control.Exception             as E
-                                                ( SomeException(..)
-                                                , try
-                                                )
-import qualified Control.Monad.Except          as E
-                                                ( MonadError(..) )
-import qualified Network.Wai                   as W
-                                                ( Response(..) )
-import           WebServer.HandlerMonad         ( HandlerError(..)
-                                                , unprocessableEntityResponse
-                                                , notFoundResponse
-                                                , badRequestResponse
-                                                )
-import           WebServer.HandlerClass         ( MonadLogger(..)
-                                                , MonadHTTP(..)
-                                                )
-import           Helpers                        ( texify )
+import qualified Control.Exception as E (SomeException(..), try)
+import qualified Control.Monad.Except as E (MonadError(..))
+import Helpers (texify)
+import qualified Network.Wai as W (Response(..))
+import WebServer.HandlerClass (MonadHTTP(..), MonadLogger(..))
+import WebServer.HandlerMonad
+  ( HandlerError(..)
+  , badRequestResponse
+  , notFoundResponse
+  , unprocessableEntityResponse
+  )
 
-manageHandlerError
-  :: (MonadHTTP m, MonadLogger m) => HandlerError -> m W.Response
+manageHandlerError ::
+     (MonadHTTP m, MonadLogger m) => HandlerError -> m W.Response
 manageHandlerError e@(ParseError _) = logWarn (texify e) >> badRequestResponse
 manageHandlerError e@Forbidden =
   logWarn
-      "(Authorization failed)/(Attempted removing admin user or default entity)"
-    >> notFoundResponse
+    "(Authorization failed)/(Attempted removing admin user or default entity)" >>
+  notFoundResponse
 manageHandlerError e@(PSQLError _) =
   logError (texify e) >> unprocessableEntityResponse
 
 withPSQLException :: IO a -> IO (Either String a)
 withPSQLException io = E.try io >>= either left right
- where
-  left :: E.SomeException -> IO (Either String a)
-  left  = pure . Left . show
-  right = pure . Right
+  where
+    left :: E.SomeException -> IO (Either String a)
+    left = pure . Left . show
+    right = pure . Right
 
 throwParseError :: E.MonadError HandlerError m => String -> m a
 throwParseError err =

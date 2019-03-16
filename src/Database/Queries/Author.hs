@@ -3,14 +3,12 @@
 
 module Database.Queries.Author where
 
-import qualified Database.PostgreSQL.Simple    as PSQL
-                                                ( Connection(..)
-                                                , Query(..)
-                                                , query
-                                                )
-import           Database.Models.Author         ( Author(..)
-                                                , AuthorRaw(..)
-                                                )
+import Database.Models.Author (Author(..), AuthorRaw(..))
+import qualified Database.PostgreSQL.Simple as PSQL
+  ( Connection(..)
+  , Query(..)
+  , query
+  )
 
 updateAuthor :: PSQL.Connection -> Integer -> AuthorRaw -> IO Author
 updateAuthor conn authorId AuthorRaw {..} =
