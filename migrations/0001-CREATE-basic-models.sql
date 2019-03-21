@@ -1,6 +1,3 @@
--- TO DO
--- ON UPDATE ?
-
 CREATE TABLE users(
     id serial PRIMARY KEY,
     name text NOT NULL,
@@ -10,6 +7,9 @@ CREATE TABLE users(
     is_admin boolean DEFAULT false
 );
 
+INSERT INTO users(id, name, surname, avatar, date_created, is_admin) 
+  VALUES (0,'Admin','Adminovich','https',CURRENT_TIMESTAMP,true);
+
 CREATE TABLE authors(
     id serial PRIMARY KEY,
     user_id integer,
@@ -18,6 +18,9 @@ CREATE TABLE authors(
     UNIQUE (user_id)
 );
 
+INSERT INTO authors(id, user_id, description)
+  VALUES (0, 0, 'No author');
+  
 CREATE TABLE tags(
     id serial PRIMARY KEY,
     name text NOT NULL,
@@ -32,6 +35,9 @@ CREATE TABLE categories(
     UNIQUE (name),
     FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE SET NULL
 );
+
+INSERT INTO categories(id, name, parent_id)
+  VALUES (0, 'Other', default);
 
 CREATE TABLE news(
     id serial PRIMARY KEY,
