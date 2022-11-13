@@ -10,6 +10,7 @@ import Control.Monad (forever, void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import qualified Data.Aeson as J
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Internal as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
 import Data.Time (getCurrentTime)
@@ -17,7 +18,7 @@ import GHC.IO.Unsafe (unsafePerformIO)
 import Service.Logger.LogConfig (LogConfig (..))
 import Service.Logger.LogLevel (LogLevel (..))
 import Service.Logger.LogMessage (LogMessage (..))
-import System.IO (BufferMode (BlockBuffering), Handle, IOMode (AppendMode), hFlush, hSetBuffering, stderr, withFile)
+import System.IO (BufferMode (..), Handle, IOMode (AppendMode), hFlush, hSetBuffering, stderr, withFile)
 import Prelude hiding (log)
 
 -- TODO do I need to save all logs before exiting on exception?
@@ -31,8 +32,8 @@ withGlobalLogging LogConfig {..} io = case logToFile of
       then race_ io $ prepareLoggerStd >> prepareLoggerFile handle >> logger handle
       else race_ io $ prepareLoggerStd >> loggerFile handle
   where
-    prepareLoggerStd = hSetBuffering stderr $ BlockBuffering $ Just 256
-    prepareLoggerFile h = hSetBuffering h $ BlockBuffering $ Just 256
+    prepareLoggerStd = hSetBuffering stderr LineBuffering
+    prepareLoggerFile h = hSetBuffering h LineBuffering
 
 loggerFile :: Handle -> IO a
 loggerFile handle = forever $ do
@@ -58,7 +59,8 @@ loggerFileCycle handle m = BS.hPut handle m >> hFlush handle
 readLogMessage :: IO BS.ByteString
 readLogMessage = do
   msg <- atomically $ Q.readTQueue globalQueue
-  pure $ LBS.toStrict $ J.encode msg
+  let bs = LBS.toStrict $ J.encode msg
+  pure $ bs `BS.snoc` BS.c2w '\n'
 
 globalQueue :: Q.TQueue LogMessage
 globalQueue = unsafePerformIO Q.newTQueueIO
