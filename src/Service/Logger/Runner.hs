@@ -51,10 +51,10 @@ logger handle = forever $ do
   concurrently_ (loggerStdCycle msg) (loggerFileCycle handle msg)
 
 loggerStdCycle :: BS.ByteString -> IO ()
-loggerStdCycle m = BS.hPut stderr m >> hFlush stderr
+loggerStdCycle = BS.hPut stderr
 
 loggerFileCycle :: Handle -> BS.ByteString -> IO ()
-loggerFileCycle handle m = BS.hPut handle m >> hFlush handle
+loggerFileCycle = BS.hPut
 
 readLogMessage :: IO BS.ByteString
 readLogMessage = do
