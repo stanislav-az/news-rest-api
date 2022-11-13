@@ -4,7 +4,7 @@ module Main where
 
 import News.Config (getByName, getLogConfig, loadConfig)
 import qualified Control.Exception as E (bracket)
-import qualified Control.Logger.Simple as L (withGlobalLogging)
+import qualified Service.Logger as L (withGlobalLogging)
 import qualified Control.Monad.Except as E (catchError)
 import News.Database.Connection (connect)
 import qualified Database.PostgreSQL.Simple as PSQL (close)

@@ -1,6 +1,6 @@
 module News.WebServer.HandlerClass where
 
-import qualified Control.Logger.Simple as L
+import qualified Service.Logger as L
   ( logDebug
   , logError
   , logInfo

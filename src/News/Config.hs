@@ -8,7 +8,7 @@ module News.Config
   , C.Config
   ) where
 
-import qualified Control.Logger.Simple as L (LogConfig(..))
+import qualified Service.Logger as L (LogConfig(..))
 import qualified Data.Configurator as C
   ( autoConfig
   , autoReload
@@ -35,7 +35,7 @@ getLogConfig = do
   logToFile <- getMaybe conf "logging.log_to_file"
   let logDir = D.takeDirectory <$> logToFile
   maybe (pure ()) (D.createDirectoryIfMissing True) logDir
-  pure $ L.LogConfig {L.lc_file = logToFile, L.lc_stderr = logToStdout}
+  pure $ L.LogConfig {L.logToFile = logToFile, L.logToStdErr = logToStdout}
 
 getByName :: C.Configured a => C.Config -> C.Name -> IO a
 getByName = C.require
