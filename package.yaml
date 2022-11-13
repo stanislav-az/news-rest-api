@@ -35,6 +35,8 @@ dependencies:
 - mtl
 - simple-logger
 - filepath
+- async
+- stm
 
 library:
   source-dirs: src
