@@ -6,18 +6,18 @@ module MonadDatabaseSpec
   ( spec
   ) where
 
-import Config (loadConfig)
+import News.Config (loadConfig)
 import qualified Control.Exception as E (bracket)
 import Control.Monad.Except
 import qualified Data.Aeson as JSON (ToJSON(..), encode, object)
 import Data.Aeson ((.=))
 import qualified Data.Map.Strict as M (fromAscList)
-import Database.Connection (connect)
-import Database.Models.Author (Author(..), AuthorRaw(..))
-import Database.Models.Category (CategoryNested(..), CategoryRaw(..))
-import Database.Models.Commentary (Commentary(..))
-import Database.Models.Tag (Tag(..), TagRaw(..))
-import Database.Models.User (User(..), UserRaw(..))
+import News.Database.Connection (connect)
+import News.Database.Models.Author (Author(..), AuthorRaw(..))
+import News.Database.Models.Category (CategoryNested(..), CategoryRaw(..))
+import News.Database.Models.Commentary (Commentary(..))
+import News.Database.Models.Tag (Tag(..), TagRaw(..))
+import News.Database.Models.User (User(..), UserRaw(..))
 import qualified Database.PostgreSQL.Simple as PSQL (close)
 import Ext.Data.Text (textify)
 import MockMonad
@@ -28,18 +28,18 @@ import qualified Network.Wai as W
   , Response(..)
   , strictRequestBody
   )
-import Serializer.Author (authorToResponse)
-import Serializer.Category (categoryNestedToResponse)
-import Serializer.Tag (tagToResponse)
-import Serializer.User (userToResponse)
+import News.Serializer.Author (authorToResponse)
+import News.Serializer.Category (categoryNestedToResponse)
+import News.Serializer.Tag (tagToResponse)
+import News.Serializer.User (userToResponse)
 import Test.Hspec (Spec(..), describe, it)
 import Test.Hspec.Wai (delete, get, post, request, shouldRespondWith, with)
 import Test.Hspec.Wai.Matcher (bodyEquals, matchBody)
-import WebServer.Application (newsServer)
-import WebServer.Error (manageHandlerError)
-import WebServer.HandlerClass (MonadLogger(..))
-import WebServer.HandlerMonad (DynamicPathsMap(..), serverErrorResponse)
-import WebServer.UrlParser.Pagination (Limit(..))
+import News.WebServer.Application (newsServer)
+import News.WebServer.Error (manageHandlerError)
+import News.WebServer.HandlerClass (MonadLogger(..))
+import News.WebServer.HandlerMonad (DynamicPathsMap(..), serverErrorResponse)
+import News.WebServer.UrlParser.Pagination (Limit(..))
 
 mockApp :: IO W.Application
 mockApp = pure $ newsServer mockRoutes runMockHandler

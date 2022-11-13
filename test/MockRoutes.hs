@@ -4,9 +4,9 @@ module MockRoutes where
 
 import MockMonad (MockHandler(..))
 import qualified Network.HTTP.Types as HTTP (status200)
-import Routes (createRoutes, listRoutes, removeRoutes)
-import WebServer.HandlerClass (MonadHTTP(..))
-import WebServer.Router (Route(..))
+import News.Routes (createRoutes, listRoutes, removeRoutes)
+import News.WebServer.HandlerClass (MonadHTTP(..))
+import News.WebServer.Router (Route(..))
 
 mockRoutes :: [(Route, MockHandler)]
 mockRoutes =

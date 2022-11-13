@@ -2,26 +2,26 @@
 
 module Main where
 
-import Config (getByName, getLogConfig, loadConfig)
+import News.Config (getByName, getLogConfig, loadConfig)
 import qualified Control.Exception as E (bracket)
 import qualified Control.Logger.Simple as L (withGlobalLogging)
 import qualified Control.Monad.Except as E (catchError)
-import Database.Connection (connect)
+import News.Database.Connection (connect)
 import qualified Database.PostgreSQL.Simple as PSQL (close)
 import Ext.Data.Text (textify)
 import qualified Network.Wai as W (Request(..), Response(..))
 import qualified Network.Wai.Handler.Warp as W (run)
-import Routes (routes)
-import WebServer.Application (newsServer, withLogging)
-import WebServer.Error (manageHandlerError)
-import WebServer.HandlerClass (logError, logInfo)
-import WebServer.HandlerMonad
+import News.Routes (routes)
+import News.WebServer.Application (newsServer, withLogging)
+import News.WebServer.Error (manageHandlerError)
+import News.WebServer.HandlerClass (logError, logInfo)
+import News.WebServer.HandlerMonad
   ( DynamicPathsMap(..)
   , Handler(..)
   , runHandler
   , serverErrorResponse
   )
-import WebServer.UrlParser.Pagination (Limit(..))
+import News.WebServer.UrlParser.Pagination (Limit(..))
 
 main :: IO ()
 main =

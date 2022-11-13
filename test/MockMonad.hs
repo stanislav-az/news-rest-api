@@ -14,17 +14,17 @@ import qualified Data.Map.Strict as M (Map(..), elems, keys, lookup)
 import qualified Data.Proxy as P (Proxy(..))
 import qualified Data.Text as T (Text(..))
 import qualified Data.Time as Time (Day(..), LocalTime(..), TimeOfDay(..))
-import Database.Models.Author (Author(..), AuthorRaw(..))
-import Database.Models.Category (CategoryNested(..), CategoryRaw(..))
-import Database.Models.Commentary (Commentary(..))
-import Database.Models.Tag (Tag(..), TagRaw(..))
-import Database.Models.User (User(..), UserRaw(..))
+import News.Database.Models.Author (Author(..), AuthorRaw(..))
+import News.Database.Models.Category (CategoryNested(..), CategoryRaw(..))
+import News.Database.Models.Commentary (Commentary(..))
+import News.Database.Models.Tag (Tag(..), TagRaw(..))
+import News.Database.Models.User (User(..), UserRaw(..))
 import qualified Database.PostgreSQL.Simple as PSQL
 import qualified Network.Wai as W (Request(..), Response(..), responseLBS)
-import qualified WebServer.HandlerClass as HC
-import qualified WebServer.HandlerMonad as HM
-import qualified WebServer.MonadDatabase as MD
-import WebServer.UrlParser.Pagination (Limit(..), Offset(..))
+import qualified News.WebServer.HandlerClass as HC
+import qualified News.WebServer.HandlerMonad as HM
+import qualified News.WebServer.MonadDatabase as MD
+import News.WebServer.UrlParser.Pagination (Limit(..), Offset(..))
 
 data MockIO = MockIO
   { mockDB :: MockDB

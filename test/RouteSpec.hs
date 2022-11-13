@@ -7,7 +7,7 @@ module RouteSpec
 import qualified Network.HTTP.Types as HTTP (status200, status404)
 import Network.Wai (Request(..), defaultRequest, responseLBS, responseStatus)
 import Test.Hspec (Spec(..), describe, it, shouldBe)
-import WebServer.Router (Route(..), checkout, route)
+import News.WebServer.Router (Route(..), checkout, route)
 
 rootRoute = MethodRoute "GET"
 
